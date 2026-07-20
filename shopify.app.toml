@@ -2,7 +2,7 @@
 
 client_id = "13e88e6bfc3d0e74356dcb14889faf58"
 name = "Announcement Bar Pro"
-application_url = "https://example.com"
+application_url = "https://announcement-bar-production-89c0.up.railway.app"
 embedded = true
 
 [build]
@@ -24,10 +24,10 @@ api_version = "2026-10"
 scopes = "write_metaobject_definitions,write_metaobjects,write_products"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://announcement-bar-production-89c0.up.railway.app/api/auth" ]
 
 [app_proxy]
-url = "https://example.com"
+url = "https://announcement-bar-production-89c0.up.railway.app"
 subpath = "announcement-bar"
 prefix = "apps"
 
