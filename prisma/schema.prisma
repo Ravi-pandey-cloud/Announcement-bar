@@ -96,8 +96,7 @@ model Announcement {
   paddingBottom   Int       @default(8)
   marginTop       Int       @default(0)
   marginBottom    Int       @default(0)
-  htmlContent     String    @default("") @db.LongText
-
+  htmlContent    String     @default("")
   // Rotation: how this bar behaves when combined with other enabled bars
   // "static" | "carousel" | "scroll"
   rotationMode String @default("static")
