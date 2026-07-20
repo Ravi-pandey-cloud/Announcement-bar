@@ -1,0 +1,149 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Note that some adapters may set a maximum length for the String type by default, please ensure your strings are long
+// enough when changing adapters.
+// See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
+
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  refreshToken        String?
+  refreshTokenExpires DateTime?
+}
+
+model Announcement {
+  id       String @id @default(cuid())
+  shop     String
+
+  // Core
+  name    String
+  message String
+  enabled Boolean @default(true)
+  order   Int     @default(0)
+
+  // Page targeting: comma-separated subset of "home,collection,product,cart,custom"
+  // "all" means every page.
+  displayPages  String  @default("all")
+  customPageUrl String?
+
+  // Location targeting: comma-separated ISO-3166 country codes (e.g. "US,CA").
+  // "all" means every country/location.
+  countries String @default("all")
+
+  // Optional call-to-action link shown inside the bar
+  linkUrl  String?
+  linkText String?
+
+  // Scheduling: campaign automatically activates/deactivates within this window.
+  // Null startAt = starts immediately. Null endAt = never automatically ends.
+  startAt DateTime?
+  endAt   DateTime?
+
+  // Look & feel
+  backgroundColor String @default("#1a1a1a")
+  textColor       String @default("#ffffff")
+
+  // Design styling options
+  bgStyle         String    @default("single")
+  bgGradient      String    @default("")
+  bgAnimation     String    @default("none")
+  borderRadius    Int       @default(0)
+  borderSize      Int       @default(0)
+  borderColor     String    @default("#000000")
+  fontFamily      String    @default("inherit")
+  fontSize        Int       @default(14)
+  fontBold        Boolean   @default(false)
+  textAnimation   String    @default("none")
+  customCss       String    @default("") @db.LongText
+  subtextFontSize Int       @default(14)
+  subtextColor    String    @default("#ffffff")
+  subtextBold     Boolean   @default(false)
+  buttonFontSize  Int       @default(12)
+  buttonTextColor String    @default("#000000")
+  buttonBold      Boolean   @default(true)
+  buttonBgColor   String    @default("#ffffff")
+  timerPosition   String    @default("default")
+  timerFontSize   Int       @default(14)
+  timerWidth      String    @default("auto")
+  timerHeight     String    @default("auto")
+  timerTextColor  String    @default("#ffffff")
+  timerBgColor    String    @default("rgba(0,0,0,0.2)")
+  paddingTop      Int       @default(8)
+  paddingBottom   Int       @default(8)
+  marginTop       Int       @default(0)
+  marginBottom    Int       @default(0)
+  htmlContent     String    @default("") @db.LongText
+
+  // Rotation: how this bar behaves when combined with other enabled bars
+  // "static" | "carousel" | "scroll"
+  rotationMode String @default("static")
+
+  // Countdown timer for flash sales / limited time offers
+  countdownEnabled       Boolean   @default(false)
+  countdownEndAt         DateTime?
+  countdownExpiredMessage String?
+
+  // Cart goal / free-shipping style progress bar
+  cartGoalEnabled         Boolean @default(false)
+  cartGoalAmount          Float?
+  cartGoalMessage         String?
+  cartGoalAchievedMessage String?
+
+  // Sleek Announcement Bar & Timer features
+  barType                 String   @default("simple")
+  slideDuration           Int      @default(5)
+  showCloseButton         Boolean  @default(false)
+  position                String   @default("top")
+  sticky                  Boolean  @default(false)
+  customerTargetingType   String   @default("all")
+  customerTargetingTags   String   @default("")
+  customerTargetingSpend  Float    @default(0.0)
+  slidesJson              String?  @db.LongText
+  sliderShowArrows        Boolean  @default(true)
+  sliderArrowsPosition    String   @default("corners")
+
+  timezone                String   @default("UTC")
+  analytics               AnnouncementAnalytics[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shop])
+}
+
+model AnnouncementAnalytics {
+  id             String       @id @default(cuid())
+  announcementId String
+  date           String       // YYYY-MM-DD format
+  views          Int          @default(0)
+  clicks         Int          @default(0)
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, date])
+  @@index([announcementId])
+}
+

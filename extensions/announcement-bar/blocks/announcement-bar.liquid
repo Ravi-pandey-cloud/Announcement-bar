@@ -1,0 +1,42 @@
+{{ 'announcement-bar.css' | asset_url | stylesheet_tag }}
+
+<div
+  id="ab-announcement-bar-root"
+  class="ab-root"
+  data-shop="{{ shop.permanent_domain }}"
+  data-page-type="{{ request.page_type }}"
+  data-page-url="{{ request.path }}"
+  data-currency="{{ cart.currency.symbol | default: shop.currency }}"
+  data-country="{{ localization.country.iso_code }}"
+  data-position="{{ block.settings.position }}"
+  data-sticky="{{ block.settings.sticky }}"
+  data-customer-tags="{{ customer.tags | join: ',' }}"
+  data-customer-spend="{{ customer.total_spent }}"
+></div>
+
+<script src="{{ 'announcement-bar.js' | asset_url }}" defer="defer"></script>
+
+{% schema %}
+{
+  "name": "Announcement bar",
+  "target": "section",
+  "settings": [
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Position",
+      "options": [
+        { "value": "top", "label": "Top of page" },
+        { "value": "bottom", "label": "Bottom of page" }
+      ],
+      "default": "top"
+    },
+    {
+      "type": "checkbox",
+      "id": "sticky",
+      "label": "Stick to the screen while scrolling",
+      "default": false
+    }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,7 @@
+api_version = "2026-10"
+
+[[extensions]]
+name = "Announcement Bar"
+handle = "Announcement-Bar"
+uid = "9f99bd8b-b36c-2f7b-e859-b52fd07ccf5fc5d95d06"
+type = "theme_app_extension"

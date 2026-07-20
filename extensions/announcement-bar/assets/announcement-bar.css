@@ -1,0 +1,523 @@
+.ab-root {
+  --ab-bg: #1a1a1a;
+  --ab-fg: #ffffff;
+}
+
+.ab-bar {
+  position: relative;
+  width: 100%;
+  background: var(--ab-bg);
+  color: var(--ab-fg);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  z-index: 400;
+  box-sizing: border-box;
+}
+
+.ab-bar.ab-sticky {
+  position:fixed;
+  top: 0;
+}
+
+.ab-bar[data-position="bottom"].ab-sticky {
+  position: fixed;
+  bottom: 0;
+  top: auto;
+}
+
+.ab-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 40px;
+  width:100%;
+  max-width: 160rem;
+  margin: 0 auto;
+  padding: 0 40px;
+  text-align: center;
+  position:relative;
+}
+
+.ab-slides {
+  position: relative;
+  flex: 1;
+  min-height: 24px;
+  overflow: hidden;
+   width: 100%;
+    max-width: 460px;
+ 
+
+}
+
+
+.ab-slide {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+ opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.ab-slide.ab-active {
+  display: flex;
+  opacity: 1;
+}
+
+.ab-message {
+  font-weight: 500;
+}
+
+.ab-cta {
+  color: inherit;
+  text-decoration: underline;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ab-countdown {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ab-countdown .ab-timer-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  opacity: 0.9;
+  line-height: 1;
+}
+
+.ab-countdown .ab-timer-digits {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.ab-countdown .ab-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 2ch;
+}
+
+.ab-countdown .ab-unit-value {
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.ab-countdown .ab-unit-label {
+  font-size: 0.6em;
+  font-weight: 500;
+  opacity: 0.75;
+  text-transform: capitalize;
+  margin-top: 2px;
+}
+
+.ab-countdown .ab-colon {
+  font-size: 1.15em;
+  font-weight: 700;
+  line-height: 1.1;
+  align-self: flex-start;
+  padding-top: 0;
+}
+
+.ab-cart-goal {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.ab-cart-goal-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.ab-cart-goal-fill {
+  height: 100%;
+  background: currentColor;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+/* Scrolling marquee mode */
+.ab-bar.ab-mode-scroll .ab-slides {
+  overflow: hidden;
+  white-space: nowrap;
+  min-height: unset;
+}
+
+.ab-bar.ab-mode-scroll .ab-marquee-track {
+  display: inline-flex;
+  gap: 60px;
+  white-space: nowrap;
+  animation: ab-marquee 22s linear infinite;
+}
+
+.ab-bar.ab-mode-scroll .ab-marquee-track:hover {
+  animation-play-state: paused;
+}
+.ab-timer-pos-left-corner  .ab-inner .ab-slide, .ab-timer-pos-right-corner  .ab-inner .ab-slide {
+  flex-direction: column;
+}
+@media (max-width:375px) {
+.ab-timer-pos-default .ab-inner .ab-slide-content {
+    flex-direction: column !important;
+}
+.ab-timer-pos-default .ab-inner  .ab-slide {
+    flex-direction: column;
+}
+}
+@media (max-width:700px) {
+
+.ab-timer-pos-right-corner .ab-inner {
+    flex-direction: row-reverse;
+    padding: 0 10px;
+}
+.ab-timer-pos-left-corner .ab-inner {
+padding: 0 10px;
+}
+.ab-timer-pos-right-corner .ab-slide {
+  justify-content: flex-start;
+  align-items: flex-start;
+    
+}
+.ab-timer-pos-left-corner .ab-slide.ab-active {
+  justify-content: flex-end;
+   align-items: flex-end;
+}
+.ab-timer-pos-right-corner .ab-subtext {
+  text-align: left;
+}
+.ab-timer-pos-right-corner .ab-message {
+text-align: left;
+}
+.ab-timer-pos-left-corner .ab-subtext {
+  text-align:right;
+}
+.ab-timer-pos-left-corner .ab-message {
+text-align:right;
+}
+}
+
+.ab-timer-pos-default .ab-inner .ab-slides {
+ max-width: 600px;
+}
+.ab-timer-pos-default .ab-inner .ab-slide-content{
+  flex-wrap:nowrap !important;
+}
+.ab-timer-pos-default .ab-inner .ab-subtext {
+  width: auto;
+   
+}
+@keyframes ab-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ab-close {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: inherit;
+  opacity: 0.7;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.ab-close:hover {
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .ab-inner {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Custom Animations */
+
+/* Background Animations */
+.ab-bg-anim-pulse {
+  animation: ab-pulse 3s infinite ease-in-out;
+}
+
+.ab-bg-anim-glow {
+  animation: ab-glow 3s infinite ease-in-out;
+}
+
+.ab-bg-anim-slide {
+  background-size: 200% 200% !important;
+  animation: ab-gradient-slide 6s infinite ease-in-out;
+}
+
+@keyframes ab-pulse {
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 1; filter: brightness(1.15); }
+}
+
+@keyframes ab-glow {
+  0%, 100% { box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1); }
+  50% { box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.35); }
+}
+
+@keyframes ab-gradient-slide {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Text Animations */
+.ab-text-anim-bounce .ab-message, .ab-text-anim-bounce .ab-cta {
+  display: inline-block;
+  animation: ab-bounce 2s infinite ease-in-out;
+}
+
+.ab-text-anim-shimmer .ab-message, .ab-text-anim-shimmer .ab-cta {
+  background: linear-gradient(90deg, currentColor 0%, rgba(255,255,255,0.7) 50%, currentColor 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: ab-text-shimmer 3s infinite linear;
+}
+
+.ab-text-anim-fade .ab-message, .ab-text-anim-fade .ab-cta {
+  animation: ab-fade 3s infinite ease-in-out;
+}
+
+@keyframes ab-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes ab-text-shimmer {
+  to { background-position: 200% center; }
+}
+
+@keyframes ab-fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.ab-nav-btn {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: inherit !important;
+  font-size: 16px;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 4px 8px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 10;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  line-height: 1 !important;
+}
+
+.ab-nav-btn:hover {
+  opacity: 1 !important;
+  transform: scale(1.15);
+}
+
+.ab-nav-btn svg {
+  display: block;
+}
+
+.ab-subtext {
+  font-size: 0.85em;
+  opacity: 0.8;
+  display: block;
+  width: 100%;
+
+}
+
+.ab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  margin-right: 6px;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.ab-icon {
+  margin-right: 6px;
+  display: inline-block;
+}
+
+.ab-discount-badge {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px dashed currentColor;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Carousel Sliding Animation */
+.ab-slider-track {
+  display: flex;
+  flex-direction: row;
+  transition: transform 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  width: 100%;
+}
+
+.ab-bar.ab-mode-carousel .ab-slide {
+  display: flex !important;
+  flex: 0 0 100%;
+  width: 100%;
+  box-sizing: border-box;
+  opacity: 1 !important;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Font bolding fix */
+.ab-bar.ab-font-bold .ab-message {
+  font-weight: bold !important;
+}
+
+/* Corner Countdown Timer Placement */
+.ab-countdown.ab-timer-left-corner {
+  position: absolute;
+  left: 37px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 15;
+}
+
+.ab-countdown.ab-timer-right-corner {
+  position: absolute;
+  right: 37px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 15;
+}
+
+.ab-bar.ab-has-close .ab-timer-right-corner {
+  right: 40px;
+}
+
+/* Slider navigation arrow placement */
+.ab-bar.ab-arrows-corners .ab-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.ab-bar.ab-arrows-corners .ab-prev {
+  left: 12px;
+}
+.ab-bar.ab-arrows-corners .ab-next {
+  right: 12px;
+}
+.ab-bar.ab-has-close.ab-arrows-corners .ab-next {
+  right: 40px;
+}
+
+.ab-bar.ab-arrows-near-text .ab-inner {
+  justify-content: center;
+  gap: 16px;
+}
+.ab-bar.ab-arrows-near-text .ab-nav-btn {
+  position: static;
+  transform: none;
+}
+.ab-bar.ab-arrows-near-text .ab-slides {
+  flex: 0 1 auto;
+}
+
+/* Responsive split layout styles (>= 700px) */
+@media (min-width: 700px) {
+  /* Text Left, Timer Right */
+  .ab-timer-pos-split-text-left-timer-right .ab-slides {
+    max-width: 100% !important;
+  }
+  .ab-timer-pos-split-text-left-timer-right .ab-slide-content {
+    display: flex !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .ab-timer-pos-split-text-left-timer-right .ab-slide {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+  }
+  .ab-timer-pos-split-text-left-timer-right .ab-subtext {
+    text-align: left !important;
+    margin-left: 0 !important;
+    align-self: flex-start !important;
+  }
+  .ab-timer-pos-split-text-left-timer-right .ab-countdown {
+    order: 10 !important;
+    margin-left: auto !important;
+  }
+
+  /* Timer Left, Text Right */
+  .ab-timer-pos-split-timer-left-text-right .ab-slides {
+    max-width: 100% !important;
+  }
+  .ab-timer-pos-split-timer-left-text-right .ab-slide-content {
+    display: flex !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .ab-timer-pos-split-timer-left-text-right .ab-slide {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    text-align: right !important;
+    width: 100% !important;
+  }
+  .ab-timer-pos-split-timer-left-text-right .ab-subtext {
+    text-align: right !important;
+    margin-right: 0 !important;
+    align-self: flex-end !important;
+  }
+  .ab-timer-pos-split-timer-left-text-right .ab-countdown {
+    order: -10 !important;
+    margin-right: auto !important;
+  }
+}
