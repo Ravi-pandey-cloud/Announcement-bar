@@ -541,49 +541,7 @@ export default function HelpPage() {
           line-height: 1.4;
         }
 
-        /* Contact Support Footer */
-        .support-card {
-          background: #ffffff;
-          border: 1px solid #e3e3e3;
-          border-radius: 12px;
-          padding: 24px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        }
 
-        .support-info h3 {
-          margin: 0 0 4px 0;
-          font-size: 16px;
-          font-weight: 700;
-        }
-
-        .support-info p {
-          margin: 0;
-          font-size: 14px;
-          color: #6d7175;
-        }
-
-        .btn-support {
-          background-color: #1a1a1a;
-          color: #ffffff;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 8px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          transition: background-color 0.2s;
-        }
-
-        .btn-support:hover {
-          background-color: #333333;
-        }
       `,
         }}
       />
@@ -836,19 +794,7 @@ export default function HelpPage() {
         </div>
       )}
 
-      {/* Support Footer */}
-      <div className="support-card">
-        <div className="support-info">
-          <h3>Need further assistance?</h3>
-          <p>Our support team is available to help you with custom setups or troubleshooting.</p>
-        </div>
-        <a
-          href="mailto:support@announcementbar.app?subject=Announcement%20Bar%20Support"
-          className="btn-support"
-        >
-          ✉️ Contact Support
-        </a>
-      </div>
+
     </div>
   );
 }
