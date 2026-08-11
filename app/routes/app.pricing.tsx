@@ -87,168 +87,141 @@ function formatDateString(dateStr: string | null) {
 /*  Loader – retrieve active subscription & usage data from Shopify   */
 /* ------------------------------------------------------------------ */
 export async function loader({ request }: LoaderFunctionArgs) {
+  const { billing, session } = await authenticate.admin(request);
+  const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
+
+  let currentPlan = PLAN_FREE;
+  let subscriptionId: string | null = null;
+  let renewalDate: string | null = null;
+
+  // 1. Query active subscription from Shopify
   try {
-    const { billing, session } = await authenticate.admin(request);
-    const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
-
-    let currentPlan = PLAN_FREE;
-    let subscriptionId: string | null = null;
-    let renewalDate: string | null = null;
-
-    // 1. Query active subscription from Shopify
-    try {
-      const billingResult = await billing.check({ isTest: isTestMode });
-      if (billingResult.hasActivePayment && billingResult.appSubscriptions?.length > 0) {
-        const activeSub = billingResult.appSubscriptions.find(
-          (sub: any) => sub.name === PLAN_PREMIUM || sub.name === PLAN_UNLIMITED
-        );
-        if (activeSub) {
-          currentPlan = activeSub.name;
-          subscriptionId = activeSub.id;
-          if ((activeSub as any).currentPeriodEnd) {
-            renewalDate = (activeSub as any).currentPeriodEnd;
-          }
+    const billingResult = await billing.check({ isTest: isTestMode });
+    if (billingResult.hasActivePayment && billingResult.appSubscriptions?.length > 0) {
+      const activeSub = billingResult.appSubscriptions.find(
+        (sub: any) => sub.name === PLAN_PREMIUM || sub.name === PLAN_UNLIMITED
+      );
+      if (activeSub) {
+        currentPlan = activeSub.name;
+        subscriptionId = activeSub.id;
+        if ((activeSub as any).currentPeriodEnd) {
+          renewalDate = (activeSub as any).currentPeriodEnd;
         }
       }
-    } catch (err) {
-      console.error("[Pricing Loader] Billing check error (falling back to Free plan):", err);
     }
-
-    // 2. Calculate views for current month safely
-    let currentViews = 0;
-    try {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const firstOfMonthStr = `${year}-${month}-01`;
-
-      const viewsResult = await prisma.announcementAnalytics.aggregate({
-        where: {
-          announcement: { shop: session.shop },
-          date: { gte: firstOfMonthStr },
-        },
-        _sum: { views: true },
-      });
-
-      currentViews = viewsResult._sum.views ?? 0;
-    } catch (err) {
-      console.error("[Pricing Loader] Analytics error:", err);
-    }
-
-    const planMeta = PLANS.find((p) => p.key === currentPlan);
-    const viewLimit = planMeta?.viewLimit ?? 2000;
-
-    if (!renewalDate) {
-      const now = new Date();
-      const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const year = nextMonthDate.getFullYear();
-      const month = String(nextMonthDate.getMonth() + 1).padStart(2, "0");
-      renewalDate = `${year}-${month}-01`;
-    }
-
-    return {
-      currentPlan,
-      subscriptionId,
-      currentViews,
-      viewLimit: viewLimit === Infinity ? -1 : viewLimit,
-      renewalDate,
-      isTestMode,
-      plans: PLANS.map((p) => ({
-        ...p,
-        viewLimit: p.viewLimit === Infinity ? -1 : p.viewLimit,
-      })),
-      error: null,
-    };
   } catch (err) {
-    if (err instanceof Response) throw err;
-    console.error("[Pricing Loader Fatal Error]:", err);
-    return {
-      currentPlan: PLAN_FREE,
-      subscriptionId: null,
-      currentViews: 0,
-      viewLimit: 2000,
-      renewalDate: "2026-09-01",
-      isTestMode: process.env.SHOPIFY_TEST_MODE === "true",
-      plans: PLANS.map((p) => ({
-        ...p,
-        viewLimit: p.viewLimit === Infinity ? -1 : p.viewLimit,
-      })),
-      error: err instanceof Error ? err.message : String(err),
-    };
+    console.error("[Pricing Loader] Billing check error (falling back to Free plan):", err);
   }
+
+  // 2. Calculate views for current month safely
+  let currentViews = 0;
+  try {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const firstOfMonthStr = `${year}-${month}-01`;
+
+    const viewsResult = await prisma.announcementAnalytics.aggregate({
+      where: {
+        announcement: { shop: session.shop },
+        date: { gte: firstOfMonthStr },
+      },
+      _sum: { views: true },
+    });
+
+    currentViews = viewsResult._sum.views ?? 0;
+  } catch (err) {
+    console.error("[Pricing Loader] Analytics error:", err);
+  }
+
+  const planMeta = PLANS.find((p) => p.key === currentPlan);
+  const viewLimit = planMeta?.viewLimit ?? 2000;
+
+  if (!renewalDate) {
+    const now = new Date();
+    const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const year = nextMonthDate.getFullYear();
+    const month = String(nextMonthDate.getMonth() + 1).padStart(2, "0");
+    renewalDate = `${year}-${month}-01`;
+  }
+
+  return {
+    currentPlan,
+    subscriptionId,
+    currentViews,
+    viewLimit: viewLimit === Infinity ? -1 : viewLimit,
+    renewalDate,
+    isTestMode,
+    plans: PLANS.map((p) => ({
+      ...p,
+      viewLimit: p.viewLimit === Infinity ? -1 : p.viewLimit,
+    })),
+  };
 }
 
 /* ------------------------------------------------------------------ */
 /*  Action – process plan selection & subscription cancellation       */
 /* ------------------------------------------------------------------ */
 export async function action({ request }: ActionFunctionArgs) {
-  try {
-    const { billing } = await authenticate.admin(request);
-    const formData = await request.formData();
-    const intent = formData.get("intent");
-    const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
+  const { billing } = await authenticate.admin(request);
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+  const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
 
-    if (intent === "selectPlan") {
-      const plan = String(formData.get("plan"));
+  if (intent === "selectPlan") {
+    const plan = String(formData.get("plan"));
 
-      if (plan === PLAN_FREE) {
-        // Downgrade to Free plan
-        try {
-          const billingCheck = await billing.check({ isTest: isTestMode });
-          if (billingCheck.appSubscriptions && billingCheck.appSubscriptions.length > 0) {
-            for (const sub of billingCheck.appSubscriptions) {
-              await billing.cancel({
-                subscriptionId: sub.id,
-                isTest: isTestMode,
-                prorate: true,
-              });
-            }
-          }
-        } catch (err) {
-          console.error("[Pricing Action] Cancellation error:", err);
-        }
-        return { ok: true, plan: PLAN_FREE };
-      }
-
-      // Request billing from Shopify — billing.request() throws a redirect
-      // Response on success, which React Router handles automatically.
-      // If it throws a BillingError (e.g. app not public), catch and return it.
+    if (plan === PLAN_FREE) {
+      // Downgrade to Free plan
       try {
-        return await billing.request({
-          plan,
+        const billingCheck = await billing.check({ isTest: isTestMode });
+        if (billingCheck.appSubscriptions && billingCheck.appSubscriptions.length > 0) {
+          for (const sub of billingCheck.appSubscriptions) {
+            await billing.cancel({
+              subscriptionId: sub.id,
+              isTest: isTestMode,
+              prorate: true,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[Pricing Action] Cancellation error:", err);
+      }
+      return { ok: true, plan: PLAN_FREE };
+    }
+
+    // Request billing from Shopify
+    try {
+      return await billing.request({
+        plan,
+        isTest: isTestMode,
+      });
+    } catch (err) {
+      console.error("[Pricing Action] billing.request error:", err);
+      const errMsg =
+        (err as any)?.errorData?.[0]?.message ||
+        (err instanceof Error ? err.message : String(err));
+      return { ok: false, error: errMsg };
+    }
+  }
+
+  if (intent === "cancelRenewal") {
+    const subscriptionId = String(formData.get("subscriptionId"));
+    if (subscriptionId) {
+      try {
+        await billing.cancel({
+          subscriptionId,
           isTest: isTestMode,
+          prorate: true,
         });
       } catch (err) {
-        if (err instanceof Response) throw err; // redirect responses pass through
-        console.error("[Pricing Action] billing.request error:", err);
-        const errMsg = (err as any)?.errorData?.[0]?.message
-          || (err instanceof Error ? err.message : String(err));
-        return { ok: false, error: errMsg };
+        console.error("[Pricing Action] Cancel renewal error:", err);
       }
     }
-
-    if (intent === "cancelRenewal") {
-      const subscriptionId = String(formData.get("subscriptionId"));
-      if (subscriptionId) {
-        try {
-          await billing.cancel({
-            subscriptionId,
-            isTest: isTestMode,
-            prorate: true,
-          });
-        } catch (err) {
-          console.error("[Pricing Action] Cancel renewal error:", err);
-        }
-      }
-      return { ok: true, cancelled: true };
-    }
-
-    return { ok: false };
-  } catch (err) {
-    if (err instanceof Response) throw err;
-    console.error("[Pricing Action Fatal Error]:", err);
-    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    return { ok: true, cancelled: true };
   }
+
+  return { ok: false };
 }
 
 /* ------------------------------------------------------------------ */
@@ -263,7 +236,6 @@ export default function PricingPage() {
     renewalDate,
     isTestMode,
     plans,
-    error,
   } = useLoaderData<typeof loader>();
 
   const submit = useSubmit();
@@ -303,14 +275,9 @@ export default function PricingPage() {
     <div className="pricing-container">
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
 
-      {/* Error Banner if any error occurred */}
-      {error && (
-        <div className="pricing-error-banner">
-          <strong>Notice:</strong> {error}
-        </div>
-      )}
+      {/* Action Error Banner if billing failed */}
       {actionError && (
-        <div className="pricing-error-banner" style={{ background: "#fdecea", color: "#b71c1c", borderColor: "#f5c6cb" }}>
+        <div className="pricing-error-banner">
           <strong>Billing Error:</strong> {actionError}
           {String(actionError).includes("public distribution") && (
             <span> — Go to <strong>Shopify Partners → Apps → Distribution</strong> and set to <strong>Public</strong> to enable billing.</span>
@@ -444,7 +411,6 @@ export default function PricingPage() {
   );
 }
 
-
 /* ------------------------------------------------------------------ */
 /*  Styles – Clean, simple layout matching app.help.tsx & app._index  */
 /* ------------------------------------------------------------------ */
@@ -460,9 +426,9 @@ const STYLES = `
   }
 
   .pricing-error-banner {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeeba;
+    background: #fdecea;
+    color: #b71c1c;
+    border: 1px solid #f5c6cb;
     padding: 12px 16px;
     border-radius: 8px;
     margin-bottom: 20px;
