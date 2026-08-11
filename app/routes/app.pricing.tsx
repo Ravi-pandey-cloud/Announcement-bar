@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useSubmit, useNavigation, useRouteError, useActionData } from "react-router";
+import { useLoaderData, useSubmit, useNavigation, useActionData } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
@@ -447,26 +447,6 @@ export default function PricingPage() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Error Boundary Component                                           */
-/* ------------------------------------------------------------------ */
-export function ErrorBoundary() {
-  const error = useRouteError();
-  console.error("[Pricing Page ErrorBoundary]:", error);
-  return (
-    <div className="pricing-container">
-      <div style={{ background: "#ffffff", padding: "24px", borderRadius: "12px", border: "1px solid #e3e3e3" }}>
-        <h2 style={{ margin: "0 0 12px 0", color: "#d32f2f", fontSize: "20px" }}>Pricing Page Issue Encountered</h2>
-        <p style={{ color: "#6d7175", margin: "0 0 16px 0", fontSize: "14px" }}>
-          An error occurred while communicating with Shopify Billing or the database:
-        </p>
-        <pre style={{ background: "#f9fafb", padding: "16px", borderRadius: "8px", overflow: "auto", border: "1px solid #ebebeb", fontSize: "13px", color: "#202223" }}>
-          {error instanceof Error ? error.stack || error.message : JSON.stringify(error, null, 2)}
-        </pre>
-      </div>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Styles – Clean, simple layout matching app.help.tsx & app._index  */
