@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useSubmit, useNavigation, useActionData } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -259,30 +259,26 @@ export async function action({ request }: ActionFunctionArgs) {
         isTest: isTestMode,
       });
     } catch (err: any) {
-      console.error("[Pricing Action] billing.request caught:", err);
+      console.error("[Pricing Action] billing.request caught exception:", err);
 
-      // Extract reauth header if present
-      const reauthUrl =
-        (err instanceof Response && (
+      // Extract redirect URL if Shopify threw an App Bridge redirect Response
+      let redirectUrl: string | null = null;
+      if (err instanceof Response) {
+        redirectUrl =
           err.headers.get("X-Shopify-API-Request-Failure-Reauthorize-Url") ||
           err.headers.get("x-shopify-api-request-failure-reauthorize-url") ||
           err.headers.get("Location") ||
-          err.headers.get("location")
-        )) || "";
-
-      // Only re-throw if the URL is an actual Shopify Charge Confirmation screen
-      const isChargeConfirmationRedirect =
-        reauthUrl.includes("charges") ||
-        reauthUrl.includes("confirm") ||
-        reauthUrl.includes("exitIframe") ||
-        (err instanceof Response && err.status >= 300 && err.status < 400);
-
-      if (isChargeConfirmationRedirect) {
-        console.log("[Pricing Action] Re-throwing charge confirmation redirect:", reauthUrl);
-        throw err;
+          err.headers.get("location");
       }
 
-      // If billing.request failed (e.g. app has Custom distribution instead of Public in Partners Dashboard)
+      // If a redirect URL exists (e.g. Shopify Charge Approval screen), return JSON redirectUrl!
+      // This prevents React Router from catching a thrown 401 Response and crashing!
+      if (redirectUrl) {
+        console.log("[Pricing Action] Returning JSON redirectUrl for client top-level redirect:", redirectUrl);
+        return { ok: true, redirectUrl };
+      }
+
+      // If billing.request failed without a redirect URL (e.g. app has Custom distribution or in dev test mode)
       if (isTestMode) {
         console.log(`[Pricing Action] Test Mode Fallback: Updating ShopPlan for ${session.shop} to ${plan}`);
         try {
@@ -311,7 +307,7 @@ export async function action({ request }: ActionFunctionArgs) {
       }
 
       // Format clean error message for production
-      let errMsg = "Apps without a public distribution cannot use the Billing API. Please change app distribution to Public in Shopify Partner Dashboard.";
+      let errMsg = "Apps without a public distribution cannot use the Billing API. Change app distribution to Public in Shopify Partner Dashboard.";
       if (err instanceof Error) {
         errMsg = err.message;
       } else if (err?.errorData?.[0]?.message) {
@@ -383,6 +379,18 @@ export default function PricingPage() {
   const isSubmitting = navigation.state === "submitting";
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
   const actionError = (actionData as any)?.error || null;
+
+  useEffect(() => {
+    if (actionData && (actionData as any).redirectUrl) {
+      const url = (actionData as any).redirectUrl;
+      console.log("[Pricing Page] Navigating top-level window to Shopify Billing Approval URL:", url);
+      if (window.top) {
+        window.top.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+    }
+  }, [actionData]);
 
   const handleSelectPlan = (planKey: string) => {
     if (planKey === currentPlan || isSubmitting) return;
