@@ -252,16 +252,60 @@ export async function action({ request }: ActionFunctionArgs) {
         plan,
         isTest: isTestMode,
       });
-    } catch (err) {
-      // billing.request() throws a redirect Response to send the merchant to Shopify's billing confirmation URL.
-      // We MUST rethrow Response objects so React Router performs the redirect!
-      if (err instanceof Response || (err && typeof err === "object" && "status" in err)) {
+    } catch (err: any) {
+      console.error("[Pricing Action] billing.request caught:", err);
+
+      // 1. If it's a redirect Response (status 3xx), re-throw so React Router redirects to Shopify Confirmation
+      const isRedirect =
+        (err instanceof Response && err.status >= 300 && err.status < 400) ||
+        (err && typeof err === "object" && typeof err.status === "number" && err.status >= 300 && err.status < 400);
+
+      if (isRedirect) {
         throw err;
       }
-      console.error("[Pricing Action] billing.request error:", err);
-      const errMsg =
-        (err as any)?.errorData?.[0]?.message ||
-        (err instanceof Error ? err.message : String(err));
+
+      // 2. In Test Mode (SHOPIFY_TEST_MODE=true), fallback to updating ShopPlan in DB so features can be tested
+      if (isTestMode) {
+        console.log(`[Pricing Action] Test mode fallback: Updating ShopPlan for ${session.shop} to ${plan}`);
+        try {
+          const targetPlanMeta = PLANS.find((p) => p.key === plan);
+          const newLimit = targetPlanMeta?.viewLimit ?? 2000;
+          await prisma.shopPlan.upsert({
+            where: { shop: session.shop },
+            update: {
+              plan,
+              subscriptionId: `test_sub_${Date.now()}`,
+              viewLimit: newLimit === Infinity ? -1 : newLimit,
+              status: "ACTIVE",
+            },
+            create: {
+              shop: session.shop,
+              plan,
+              subscriptionId: `test_sub_${Date.now()}`,
+              viewLimit: newLimit === Infinity ? -1 : newLimit,
+              status: "ACTIVE",
+            },
+          });
+          return { ok: true, plan, isTestMode: true };
+        } catch (dbErr) {
+          console.error("[Pricing Action] DB update error during test fallback:", dbErr);
+        }
+      }
+
+      // 3. Otherwise return user-friendly error banner
+      let errMsg = "Unable to process payment request with Shopify Billing API.";
+      if (err instanceof Response) {
+        if (err.status === 401) {
+          errMsg = "Shopify Billing API error: Public app distribution is required by Shopify for live billing.";
+        } else {
+          errMsg = `Shopify API returned status ${err.status}`;
+        }
+      } else if (err instanceof Error) {
+        errMsg = err.message;
+      } else if (err?.errorData?.[0]?.message) {
+        errMsg = err.errorData[0].message;
+      }
+
       return { ok: false, error: errMsg };
     }
   }
