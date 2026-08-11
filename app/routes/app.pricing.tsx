@@ -111,8 +111,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       }
     } catch (err) {
-      if (err instanceof Response) throw err;
-      console.error("[Pricing Loader] Billing check error:", err);
+      console.error("[Pricing Loader] Billing check error (falling back to Free plan):", err);
     }
 
     // 2. Calculate views for current month safely
@@ -206,7 +205,6 @@ export async function action({ request }: ActionFunctionArgs) {
             }
           }
         } catch (err) {
-          if (err instanceof Response) throw err;
           console.error("[Pricing Action] Cancellation error:", err);
         }
         return { ok: true, plan: PLAN_FREE };
@@ -239,7 +237,6 @@ export async function action({ request }: ActionFunctionArgs) {
             prorate: true,
           });
         } catch (err) {
-          if (err instanceof Response) throw err;
           console.error("[Pricing Action] Cancel renewal error:", err);
         }
       }
