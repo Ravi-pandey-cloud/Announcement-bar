@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useLoaderData, useSubmit, useNavigation } from "react-router";
+import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
 
 /* ------------------------------------------------------------------ */
 /*  Plan metadata – pure constants, safe for client & server           */
@@ -65,59 +67,66 @@ const PLANS = [
 /*  Loader – determine current plan from Shopify active subscriptions  */
 /* ------------------------------------------------------------------ */
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { authenticate } = await import("../shopify.server");
-  const { default: prisma } = await import("../db.server");
-
   const { billing, session } = await authenticate.admin(request);
+  const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
 
-  // Use billing.check() to query active subscriptions from Shopify
-  const { appSubscriptions } = await billing.check();
-
-  // Determine current plan from active subscriptions
   let currentPlan = PLAN_FREE;
   let subscriptionId: string | null = null;
   let renewalDate: string | null = null;
 
-  if (appSubscriptions && appSubscriptions.length > 0) {
-    const activeSub = appSubscriptions.find(
-      (sub: any) => sub.name === PLAN_PREMIUM || sub.name === PLAN_UNLIMITED
-    );
-    if (activeSub) {
-      currentPlan = activeSub.name;
-      subscriptionId = activeSub.id;
-      // currentPeriodEnd may be available on some subscription objects
-      if ((activeSub as any).currentPeriodEnd) {
-        renewalDate = (activeSub as any).currentPeriodEnd;
+  // 1. Query active subscriptions from Shopify using billing.check()
+  try {
+    const billingResult = await billing.check({
+      plans: [PLAN_PREMIUM, PLAN_UNLIMITED],
+      isTest: isTestMode,
+    });
+
+    if (billingResult.hasActivePayment && billingResult.appSubscriptions?.length > 0) {
+      const activeSub = billingResult.appSubscriptions.find(
+        (sub: any) => sub.name === PLAN_PREMIUM || sub.name === PLAN_UNLIMITED
+      );
+      if (activeSub) {
+        currentPlan = activeSub.name;
+        subscriptionId = activeSub.id;
+        if ((activeSub as any).currentPeriodEnd) {
+          renewalDate = (activeSub as any).currentPeriodEnd;
+        }
       }
     }
+  } catch (err) {
+    console.error("[Pricing Loader] Error checking billing status:", err);
   }
 
-  // Calculate monthly views from AnnouncementAnalytics
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const firstOfMonthStr = firstOfMonth.toISOString().split("T")[0];
+  // 2. Aggregate monthly views from AnnouncementAnalytics safely
+  let currentViews = 0;
+  try {
+    const now = new Date();
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const firstOfMonthStr = firstOfMonth.toISOString().split("T")[0];
 
-  const viewsResult = await prisma.announcementAnalytics.aggregate({
-    where: {
-      announcement: { shop: session.shop },
-      date: { gte: firstOfMonthStr },
-    },
-    _sum: { views: true },
-  });
+    const viewsResult = await prisma.announcementAnalytics.aggregate({
+      where: {
+        announcement: { shop: session.shop },
+        date: { gte: firstOfMonthStr },
+      },
+      _sum: { views: true },
+    });
 
-  const currentViews = viewsResult._sum.views ?? 0;
+    currentViews = viewsResult._sum.views ?? 0;
+  } catch (err) {
+    console.error("[Pricing Loader] Error querying analytics:", err);
+  }
 
-  // Determine view limit based on plan
+  // 3. Determine view limit based on current plan
   const planMeta = PLANS.find((p) => p.key === currentPlan);
   const viewLimit = planMeta?.viewLimit ?? 2000;
 
-  // Estimate renewal date if not from subscription
+  // 4. Estimate renewal date if not available from subscription object
   if (!renewalDate) {
+    const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     renewalDate = nextMonth.toISOString().split("T")[0];
   }
-
-  const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
 
   return {
     currentPlan,
@@ -137,8 +146,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
 /*  Action – handle plan selection & subscription cancellation         */
 /* ------------------------------------------------------------------ */
 export async function action({ request }: ActionFunctionArgs) {
-  const { authenticate } = await import("../shopify.server");
-
   const { billing } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
@@ -149,39 +156,45 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (plan === PLAN_FREE) {
       // Downgrade to free – cancel any active subscription
-      const { appSubscriptions } = await billing.check();
-      if (appSubscriptions && appSubscriptions.length > 0) {
-        for (const sub of appSubscriptions) {
-          await billing.cancel({
-            subscriptionId: sub.id,
-            isTest: isTestMode,
-            prorate: true,
-          });
+      try {
+        const billingCheck = await billing.check({
+          plans: [PLAN_PREMIUM, PLAN_UNLIMITED],
+          isTest: isTestMode,
+        });
+        if (billingCheck.appSubscriptions && billingCheck.appSubscriptions.length > 0) {
+          for (const sub of billingCheck.appSubscriptions) {
+            await billing.cancel({
+              subscriptionId: sub.id,
+              isTest: isTestMode,
+              prorate: true,
+            });
+          }
         }
+      } catch (err) {
+        console.error("[Pricing Action] Error cancelling subscription:", err);
       }
       return { ok: true, plan: PLAN_FREE };
     }
 
-    // For Premium or Unlimited, request billing
-    // billing.request() will throw a redirect Response to the Shopify
-    // confirmation page. The merchant approves there, then gets redirected
-    // back to returnUrl.
+    // For Premium or Unlimited, request billing redirect
     await billing.request({
       plan,
       isTest: isTestMode,
     });
-
-    // billing.request() never returns – it throws a redirect
   }
 
   if (intent === "cancelRenewal") {
     const subscriptionId = String(formData.get("subscriptionId"));
     if (subscriptionId) {
-      await billing.cancel({
-        subscriptionId,
-        isTest: isTestMode,
-        prorate: true,
-      });
+      try {
+        await billing.cancel({
+          subscriptionId,
+          isTest: isTestMode,
+          prorate: true,
+        });
+      } catch (err) {
+        console.error("[Pricing Action] Error cancelling renewal:", err);
+      }
     }
     return { ok: true, cancelled: true };
   }
