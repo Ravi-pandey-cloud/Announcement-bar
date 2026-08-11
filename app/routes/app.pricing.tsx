@@ -5,104 +5,78 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 /* ------------------------------------------------------------------ */
-/*  Plan Constants & Configuration                                     */
+/*  Plan Keys – MUST match shopify.server.ts billing config keys       */
 /* ------------------------------------------------------------------ */
 const PLAN_FREE = "Free";
 const PLAN_PREMIUM = "Premium";
 const PLAN_UNLIMITED = "Unlimited";
 
-interface PlanConfig {
-  key: string;
-  name: string;
-  monthlyPrice: number;
-  annualPrice: number;
-  description: string;
-  viewLimit: number;
-  highlight: boolean;
-  badge?: string;
-  features: string[];
-}
-
-const PLANS: PlanConfig[] = [
+const PLANS = [
   {
     key: PLAN_FREE,
-    name: "Free Starter",
-    monthlyPrice: 0,
-    annualPrice: 0,
-    description: "Perfect for testing and small stores starting out",
+    name: "Free",
+    price: 0,
+    period: "month",
+    description: "Ideal for new stores getting started",
     viewLimit: 2000,
-    highlight: false,
+    badge: null,
     features: [
       "Up to 2,000 views / month",
-      "1 Active Announcement Bar",
-      "Standard Customization & Colors",
-      "Page & Country Targeting",
-      "Community Support",
+      "1 active announcement bar",
+      "Basic style & color customization",
+      "Standard support",
     ],
   },
   {
     key: PLAN_PREMIUM,
-    name: "Premium Pro",
-    monthlyPrice: 9,
-    annualPrice: 7,
-    description: "Ideal for growing stores needing advanced sales boosters",
+    name: "Premium",
+    price: 9,
+    period: "month",
+    description: "For growing stores needing advanced sales features",
     viewLimit: 50000,
-    highlight: true,
-    badge: "Most Popular",
+    badge: "Popular",
     features: [
       "Up to 50,000 views / month",
-      "Unlimited Active Announcements",
-      "Countdown Sale Timers",
-      "Cart Goal Free Shipping Bar",
-      "Multiple Bar Rotation (Carousel & Marquee)",
-      "Priority Email & Chat Support",
+      "Unlimited active announcements",
+      "Countdown timer bars",
+      "Cart goal free shipping bars",
+      "Multiple bar rotation (carousel & scroll)",
+      "Priority support",
     ],
   },
   {
     key: PLAN_UNLIMITED,
-    name: "Unlimited Scale",
-    monthlyPrice: 29,
-    annualPrice: 23,
-    description: "Built for high-volume brands with maximum traffic",
+    name: "Unlimited",
+    price: 29,
+    period: "month",
+    description: "For high-traffic stores with no limits",
     viewLimit: Infinity,
-    highlight: false,
-    badge: "Maximum Power",
+    badge: null,
     features: [
-      "Unlimited Monthly Views",
-      "Unlimited Active Announcements",
-      "All Premium Features Included",
-      "Custom CSS & Custom JS Injection",
-      "Advanced Customer Tag Targeting",
-      "Dedicated 1-on-1 Account Manager",
+      "Unlimited views",
+      "Unlimited active announcements",
+      "All Premium features included",
+      "Custom CSS styling",
+      "Customer tag targeting",
+      "Dedicated support",
     ],
   },
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Loader – query subscriptions safely with Response pass-through   */
+/*  Loader – retrieve active subscription & usage data from Shopify   */
 /* ------------------------------------------------------------------ */
 export async function loader({ request }: LoaderFunctionArgs) {
-  let adminContext;
-  try {
-    adminContext = await authenticate.admin(request);
-  } catch (err) {
-    if (err instanceof Response) throw err;
-    throw err;
-  }
-
-  const { billing, session } = adminContext;
+  const { billing, session } = await authenticate.admin(request);
   const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
 
   let currentPlan = PLAN_FREE;
   let subscriptionId: string | null = null;
   let renewalDate: string | null = null;
 
-  // 1. Query Shopify active subscriptions with response re-throw protection
+  // Query active subscription from Shopify
   try {
-    const billingResult = await billing.check({
-      isTest: isTestMode,
-    });
-
+    const billingResult = await billing.check({ isTest: isTestMode });
     if (billingResult.hasActivePayment && billingResult.appSubscriptions?.length > 0) {
       const activeSub = billingResult.appSubscriptions.find(
         (sub: any) => sub.name === PLAN_PREMIUM || sub.name === PLAN_UNLIMITED
@@ -117,15 +91,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   } catch (err) {
     if (err instanceof Response) throw err;
-    console.error("[Pricing Loader] Billing check warning:", err);
+    console.error("[Pricing Loader] Billing check error:", err);
   }
 
-  // 2. Query monthly analytics views safely
+  // Calculate views for current month
   let currentViews = 0;
   try {
     const now = new Date();
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const firstOfMonthStr = firstOfMonth.toISOString().split("T")[0];
+    const firstOfMonthStr = new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString()
+      .split("T")[0];
 
     const viewsResult = await prisma.announcementAnalytics.aggregate({
       where: {
@@ -137,14 +112,12 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     currentViews = viewsResult._sum.views ?? 0;
   } catch (err) {
-    console.error("[Pricing Loader] Analytics query warning:", err);
+    console.error("[Pricing Loader] Analytics error:", err);
   }
 
-  // 3. Determine current plan's view limit
   const planMeta = PLANS.find((p) => p.key === currentPlan);
   const viewLimit = planMeta?.viewLimit ?? 2000;
 
-  // 4. Default estimated renewal date if none returned from Shopify API
   if (!renewalDate) {
     const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -166,18 +139,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Action – handle plan selection & subscription cancellation       */
+/*  Action – process plan selection & subscription cancellation       */
 /* ------------------------------------------------------------------ */
 export async function action({ request }: ActionFunctionArgs) {
-  let adminContext;
-  try {
-    adminContext = await authenticate.admin(request);
-  } catch (err) {
-    if (err instanceof Response) throw err;
-    throw err;
-  }
-
-  const { billing } = adminContext;
+  const { billing } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
   const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
@@ -186,10 +151,9 @@ export async function action({ request }: ActionFunctionArgs) {
     const plan = String(formData.get("plan"));
 
     if (plan === PLAN_FREE) {
+      // Downgrade to Free plan
       try {
-        const billingCheck = await billing.check({
-          isTest: isTestMode,
-        });
+        const billingCheck = await billing.check({ isTest: isTestMode });
         if (billingCheck.appSubscriptions && billingCheck.appSubscriptions.length > 0) {
           for (const sub of billingCheck.appSubscriptions) {
             await billing.cancel({
@@ -201,13 +165,14 @@ export async function action({ request }: ActionFunctionArgs) {
         }
       } catch (err) {
         if (err instanceof Response) throw err;
-        console.error("[Pricing Action] Subscription cancel error:", err);
+        console.error("[Pricing Action] Cancellation error:", err);
       }
       return { ok: true, plan: PLAN_FREE };
     }
 
-    // For Premium or Unlimited, request billing redirect (throws a Response redirect)
-    await billing.request({
+    // For Premium or Unlimited, request billing approval from Shopify
+    // This will redirect out of the iframe to Shopify's confirmation page
+    return await billing.request({
       plan,
       isTest: isTestMode,
     });
@@ -224,7 +189,7 @@ export async function action({ request }: ActionFunctionArgs) {
         });
       } catch (err) {
         if (err instanceof Response) throw err;
-        console.error("[Pricing Action] Renewal cancel error:", err);
+        console.error("[Pricing Action] Cancel renewal error:", err);
       }
     }
     return { ok: true, cancelled: true };
@@ -234,7 +199,7 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  UI Component                                                       */
+/*  UI Component – Clean, spacious design matching app.help.tsx      */
 /* ------------------------------------------------------------------ */
 export default function PricingPage() {
   const {
@@ -251,8 +216,6 @@ export default function PricingPage() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
-  const [isAnnual, setIsAnnual] = useState(false);
-  const [openFaq, setOpenFaq] = useState<string | null>("faq-1");
 
   const handleSelectPlan = (planKey: string) => {
     if (planKey === currentPlan || isSubmitting) return;
@@ -265,7 +228,7 @@ export default function PricingPage() {
 
   const handleCancelRenewal = () => {
     if (!subscriptionId || isSubmitting) return;
-    if (confirm("Are you sure you want to cancel your plan renewal? You will be downgraded to Free at the end of your billing cycle.")) {
+    if (confirm("Are you sure you want to cancel your plan renewal? You will be downgraded to the Free plan at the end of your billing cycle.")) {
       submit(
         { intent: "cancelRenewal", subscriptionId },
         { method: "post" }
@@ -286,259 +249,130 @@ export default function PricingPage() {
       })
     : "—";
 
-  const faqs = [
-    {
-      id: "faq-1",
-      question: "Can I upgrade or downgrade my plan at any time?",
-      answer: "Yes! You can switch between Free, Premium, and Unlimited plans anytime. When upgrading, Shopify handles the prorated charge automatically. When downgrading, your active plan remains until the end of your billing period.",
-    },
-    {
-      id: "faq-2",
-      question: "How are monthly announcement views calculated?",
-      answer: "A view is counted whenever an active announcement bar is loaded and displayed on a customer's browser. Views reset automatically on the 1st of every month.",
-    },
-    {
-      id: "faq-3",
-      question: "What happens if I reach my plan's monthly view limit?",
-      answer: "Your announcement bars will continue displaying uninterrupted for a grace buffer. You will receive an admin notification suggesting an upgrade to Premium or Unlimited to keep your bars active.",
-    },
-    {
-      id: "faq-4",
-      question: "Will I be charged real money during test mode?",
-      answer: "No! Test mode is currently enabled (SHOPIFY_TEST_MODE=true). All plan changes trigger Shopify sandbox test subscriptions, allowing you to test the full billing flow safely without any real charges.",
-    },
-  ];
-
   return (
-    <div className="pricing-root">
-      {/* Import modern typography */}
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
-      />
+    <div className="pricing-container">
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
 
-      {/* Hero Header */}
-      <div className="pricing-hero">
-        <div className="pricing-hero-badge-row">
-          <span className="hero-pill-tag">Flexible Plans</span>
-          {isTestMode && (
-            <span className="test-badge">
-              <span className="test-badge-pulse"></span>
-              SHOPIFY BILLING TEST MODE
-            </span>
-          )}
+      {/* Header Banner */}
+      <div className="pricing-page-header">
+        <div>
+          <h1>Plans & Billing</h1>
+          <p>Select the plan that fits your business needs. Upgrade or downgrade anytime.</p>
         </div>
-        <h1 className="pricing-hero-title">
-          Simple, Transparent Pricing for Every Store
-        </h1>
-        <p className="pricing-hero-subtitle">
-          Boost sales and drive conversions with powerful announcement bars. Upgrade or downgrade anytime with 1-click.
-        </p>
-
-        {/* Billing Cycle Switch */}
-        <div className="billing-switch-container">
-          <span className={`switch-label ${!isAnnual ? "active" : ""}`}>
-            Monthly Billing
+        {isTestMode && (
+          <span className="test-mode-tag">
+            <span className="test-dot"></span>
+            Test Mode Active
           </span>
-          <button
-            className={`billing-switch-toggle ${isAnnual ? "checked" : ""}`}
-            onClick={() => setIsAnnual(!isAnnual)}
-            type="button"
-            aria-label="Toggle Billing Cycle"
-          >
-            <span className="switch-thumb" />
-          </button>
-          <span className={`switch-label ${isAnnual ? "active" : ""}`}>
-            Annual Billing
-            <span className="save-badge">Save 20%</span>
-          </span>
-        </div>
+        )}
       </div>
 
-      {/* Pricing Cards Grid */}
-      <div className="plans-grid">
+      {/* Pricing Cards */}
+      <div className="pricing-cards-grid">
         {plans.map((plan) => {
           const isCurrent = plan.key === currentPlan;
           const isLoading = isSubmitting && pendingPlan === plan.key;
-          const displayPrice = isAnnual ? plan.annualPrice : plan.monthlyPrice;
+          const isFeatured = plan.key === PLAN_PREMIUM;
 
           return (
             <div
               key={plan.key}
-              className={`plan-card ${plan.highlight ? "highlighted" : ""} ${isCurrent ? "current" : ""}`}
+              className={`pricing-card ${isFeatured ? "featured" : ""} ${isCurrent ? "active-plan" : ""}`}
             >
-              {plan.badge && !isCurrent && (
-                <div className="card-badge">{plan.badge}</div>
+              {isFeatured && !isCurrent && (
+                <div className="badge-popular">Most Popular</div>
               )}
               {isCurrent && (
-                <div className="card-badge current-badge">
-                  <span className="status-dot"></span> Active Plan
-                </div>
+                <div className="badge-current">Current Plan</div>
               )}
 
-              <div className="plan-header">
-                <h3 className="plan-title">{plan.name}</h3>
+              <div className="card-top">
+                <h2 className="plan-title">{plan.name}</h2>
                 <p className="plan-desc">{plan.description}</p>
-                <div className="price-container">
-                  <span className="price-currency">$</span>
-                  <span className="price-val">{displayPrice}</span>
-                  <span className="price-period">/ month</span>
+                <div className="price-row">
+                  <span className="price-num">${plan.price}</span>
+                  <span className="price-unit">/{plan.period}</span>
                 </div>
-                {isAnnual && plan.monthlyPrice > 0 && (
-                  <div className="annual-note">
-                    Billed annually (${displayPrice * 12}/year)
-                  </div>
-                )}
               </div>
 
-              <div className="divider" />
-
-              <div className="features-list">
-                <div className="features-label">WHAT'S INCLUDED</div>
-                {plan.features.map((feat, idx) => (
-                  <div key={idx} className="feature-row">
-                    <div className="check-icon-wrapper">
-                      <svg viewBox="0 0 20 20" fill="none" className="check-svg">
-                        <path
-                          d="M16.666 5L7.5 14.166 3.333 10"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </div>
-                    <span>{feat}</span>
-                  </div>
-                ))}
+              <div className="features-container">
+                <div className="features-title">Features included:</div>
+                <ul className="features-list">
+                  {plan.features.map((feat, i) => (
+                    <li key={i}>
+                      <span className="check-icon">✓</span>
+                      <span>{feat}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
 
-              <button
-                className={`plan-cta-btn ${plan.highlight ? "btn-primary" : "btn-secondary"} ${isCurrent ? "btn-current" : ""}`}
-                onClick={() => handleSelectPlan(plan.key)}
-                disabled={isCurrent || isSubmitting}
-                id={`select-plan-${plan.key.toLowerCase().replace(/\s+/g, "-")}`}
-              >
-                {isLoading ? (
-                  <span className="spinner"></span>
-                ) : isCurrent ? (
-                  "Current Active Plan"
-                ) : currentPlan !== PLAN_FREE && plan.key === PLAN_FREE ? (
-                  "Downgrade to Free"
-                ) : (
-                  `Choose ${plan.name}`
-                )}
-              </button>
+              <div className="card-bottom">
+                <button
+                  className={`btn-select ${isCurrent ? "btn-active" : isFeatured ? "btn-primary" : "btn-secondary"}`}
+                  onClick={() => handleSelectPlan(plan.key)}
+                  disabled={isCurrent || isSubmitting}
+                  id={`select-plan-${plan.key.toLowerCase()}`}
+                >
+                  {isLoading ? (
+                    <span className="btn-spinner"></span>
+                  ) : isCurrent ? (
+                    "Current Plan"
+                  ) : currentPlan !== PLAN_FREE && plan.key === PLAN_FREE ? (
+                    "Downgrade to Free"
+                  ) : (
+                    "Select Plan"
+                  )}
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Usage Analytics Section */}
-      <div className="usage-dashboard">
-        <div className="dashboard-header">
-          <div>
-            <h2 className="dashboard-title">Current Plan Usage & Subscription</h2>
-            <p className="dashboard-subtitle">
-              Real-time monitoring of your storefront impression metrics and plan limits
-            </p>
-          </div>
-          <span className="active-plan-pill">
-            <span className="pulse-dot"></span>
-            Current: {currentPlan}
-          </span>
-        </div>
-
-        <div className="usage-grid">
-          {/* Stat 1: Monthly Views */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <span className="stat-label">Views This Month</span>
-              <span className="stat-icon">👁️</span>
+      {/* Usage Overview Section */}
+      <div className="usage-overview-card">
+        <h2 className="section-title">Current Plan Usage</h2>
+        <div className="usage-metrics-grid">
+          <div className="metric-box">
+            <span className="metric-label">Views Used This Month</span>
+            <div className="metric-value">{currentViews.toLocaleString()}</div>
+            <div className="progress-bar-bg">
+              <div className="progress-bar-fill" style={{ width: `${usagePercent}%` }}></div>
             </div>
-            <div className="stat-value">{currentViews.toLocaleString()}</div>
-            <div className="progress-container">
-              <div className="progress-bar-bg">
-                <div
-                  className="progress-bar-fill"
-                  style={{ width: `${usagePercent}%` }}
-                />
-              </div>
-              <div className="progress-text">
-                <span>{usagePercent}% Used</span>
-                <span>{viewLimitDisplay} Limit</span>
-              </div>
-            </div>
+            <span className="metric-sub">{currentViews.toLocaleString()} of {viewLimitDisplay} views ({usagePercent}%)</span>
           </div>
 
-          {/* Stat 2: Active Plan */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <span className="stat-label">Subscription Tier</span>
-              <span className="stat-icon">💎</span>
-            </div>
-            <div className="stat-value">{currentPlan}</div>
-            <div className="stat-meta">
-              {currentPlan === PLAN_FREE
-                ? "Standard Free Tier ($0/mo)"
-                : `$${plans.find((p) => p.key === currentPlan)?.monthlyPrice ?? 0}/month subscription`}
-            </div>
+          <div className="metric-box">
+            <span className="metric-label">Current Active Plan</span>
+            <div className="metric-value">{currentPlan}</div>
+            <span className="metric-sub">
+              {currentPlan === PLAN_FREE ? "Free Tier ($0/month)" : `$${plans.find((p) => p.key === currentPlan)?.price ?? 0}/month`}
+            </span>
           </div>
 
-          {/* Stat 3: View Limit */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <span className="stat-label">Monthly View Limit</span>
-              <span className="stat-icon">⚡</span>
-            </div>
-            <div className="stat-value">{viewLimitDisplay}</div>
-            <div className="stat-meta">
-              {viewLimit === -1 ? "Unlimited impressions allowance" : "Resets on 1st of next month"}
-            </div>
+          <div className="metric-box">
+            <span className="metric-label">Monthly View Limit</span>
+            <div className="metric-value">{viewLimitDisplay}</div>
+            <span className="metric-sub">
+              {viewLimit === -1 ? "Unlimited view allowance" : "Resets on 1st of every month"}
+            </span>
           </div>
 
-          {/* Stat 4: Renewal Date */}
-          <div className="stat-card">
-            <div className="stat-header">
-              <span className="stat-label">Next Renewal Date</span>
-              <span className="stat-icon">📅</span>
-            </div>
-            <div className="stat-value-sm">{formattedRenewalDate}</div>
+          <div className="metric-box">
+            <span className="metric-label">Renewal Date</span>
+            <div className="metric-value-sm">{formattedRenewalDate}</div>
             {currentPlan !== PLAN_FREE && subscriptionId && (
               <button
-                className="cancel-btn"
+                className="btn-cancel-renewal"
                 onClick={handleCancelRenewal}
                 disabled={isSubmitting}
                 id="cancel-renewal-btn"
               >
-                Cancel Subscription Renewal
+                Cancel Renewal
               </button>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* FAQ Section */}
-      <div className="faq-dashboard">
-        <h2 className="faq-title">Frequently Asked Questions</h2>
-        <div className="faq-grid">
-          {faqs.map((faq) => {
-            const isOpen = openFaq === faq.id;
-            return (
-              <div
-                key={faq.id}
-                className={`faq-card ${isOpen ? "open" : ""}`}
-                onClick={() => setOpenFaq(isOpen ? null : faq.id)}
-              >
-                <div className="faq-question">
-                  <span>{faq.question}</span>
-                  <span className="faq-chevron">{isOpen ? "−" : "+"}</span>
-                </div>
-                {isOpen && <div className="faq-answer">{faq.answer}</div>}
-              </div>
-            );
-          })}
         </div>
       </div>
     </div>
@@ -546,384 +380,247 @@ export default function PricingPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  CSS Styling (Vanilla CSS with Premium Dark/Light Aesthetic)        */
+/*  Styles – Clean, simple layout matching app.help.tsx & app._index  */
 /* ------------------------------------------------------------------ */
 const STYLES = `
-  .pricing-root {
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #f8fafc;
-    color: #0f172a;
+  .pricing-container {
+    padding: 32px;
+    margin: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #202223;
+    background-color: #f6f6f7;
     min-height: 100vh;
-    padding: 40px 24px;
-    max-width: 1240px;
-    margin: 0 auto;
     box-sizing: border-box;
   }
 
-  /* Hero Section */
-  .pricing-hero {
-    text-align: center;
-    max-width: 760px;
-    margin: 0 auto 48px auto;
-  }
-
-  .pricing-hero-badge-row {
+  /* Header */
+  .pricing-page-header {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
   }
 
-  .hero-pill-tag {
-    background: #e2e8f0;
-    color: #475569;
-    font-size: 12px;
+  .pricing-page-header h1 {
+    font-size: 28px;
     font-weight: 700;
-    padding: 4px 12px;
-    border-radius: 20px;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
+    margin: 0 0 6px 0;
+    color: #202223;
   }
 
-  .test-badge {
+  .pricing-page-header p {
+    font-size: 14px;
+    color: #6d7175;
+    margin: 0;
+  }
+
+  .test-mode-tag {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background: #fef3c7;
-    color: #92400e;
-    border: 1px solid #fde68a;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 4px 12px;
+    padding: 6px 12px;
     border-radius: 20px;
-    letter-spacing: 0.3px;
-  }
-
-  .test-badge-pulse {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #d97706;
-    animation: pulse 1.8s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.4; transform: scale(1.2); }
-  }
-
-  .pricing-hero-title {
-    font-size: 36px;
-    font-weight: 800;
-    color: #0f172a;
-    line-height: 1.2;
-    margin: 0 0 16px 0;
-    letter-spacing: -0.8px;
-  }
-
-  .pricing-hero-subtitle {
-    font-size: 16px;
-    color: #64748b;
-    margin: 0 0 32px 0;
-    line-height: 1.6;
-  }
-
-  /* Billing Toggle Switch */
-  .billing-switch-container {
-    display: inline-flex;
-    align-items: center;
-    gap: 14px;
-    background: #ffffff;
-    padding: 8px 18px;
-    border-radius: 40px;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
-  }
-
-  .switch-label {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 600;
-    color: #64748b;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    transition: color 0.2s;
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
   }
 
-  .switch-label.active {
-    color: #0f172a;
-  }
-
-  .save-badge {
-    background: #dcfce7;
-    color: #15803d;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 12px;
-  }
-
-  .billing-switch-toggle {
-    width: 48px;
-    height: 26px;
-    background: #cbd5e1;
-    border-radius: 13px;
-    border: none;
-    cursor: pointer;
-    position: relative;
-    padding: 3px;
-    transition: background-color 0.25s ease;
-  }
-
-  .billing-switch-toggle.checked {
-    background: #0f172a;
-  }
-
-  .switch-thumb {
-    width: 20px;
-    height: 20px;
-    background: #ffffff;
+  .test-dot {
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    display: block;
-    transition: transform 0.25s ease;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    background: #ffc107;
   }
 
-  .billing-switch-toggle.checked .switch-thumb {
-    transform: translateX(22px);
-  }
-
-  /* Plans Grid */
-  .plans-grid {
+  /* Pricing Cards Grid */
+  .pricing-cards-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 28px;
-    margin-bottom: 48px;
-    align-items: stretch;
+    gap: 24px;
+    margin-bottom: 32px;
   }
 
-  @media (max-width: 960px) {
-    .plans-grid {
+  @media (max-width: 900px) {
+    .pricing-cards-grid {
       grid-template-columns: 1fr;
-      max-width: 480px;
-      margin-left: auto;
-      margin-right: auto;
+    }
+    .pricing-container {
+      padding: 16px;
+      margin: 8px;
     }
   }
 
-  /* Plan Card */
-  .plan-card {
+  /* Card */
+  .pricing-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 32px 28px;
+    border: 1px solid #e3e3e3;
+    border-radius: 12px;
+    padding: 28px;
     display: flex;
     flex-direction: column;
     position: relative;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
-    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
 
-  .plan-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  .pricing-card.featured {
+    border: 2px solid #1a1a1a;
   }
 
-  .plan-card.highlighted {
-    border: 2px solid #0f172a;
-    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+  .pricing-card.active-plan {
+    border: 2px solid #137333;
   }
 
-  .plan-card.current {
-    border: 2px solid #16a34a;
-  }
-
-  /* Card Badges */
-  .card-badge {
+  /* Badges */
+  .badge-popular {
     position: absolute;
-    top: -14px;
+    top: -12px;
     left: 50%;
     transform: translateX(-50%);
-    background: #0f172a;
+    background: #1a1a1a;
     color: #ffffff;
     font-size: 11px;
-    font-weight: 800;
-    padding: 4px 16px;
-    border-radius: 20px;
-    letter-spacing: 0.6px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 12px;
     text-transform: uppercase;
-    white-space: nowrap;
   }
 
-  .card-badge.current-badge {
-    background: #16a34a;
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  .badge-current {
+    position: absolute;
+    top: -12px;
+    right: 20px;
+    background: #e6f4ea;
+    color: #137333;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 12px;
+    border-radius: 12px;
+    text-transform: uppercase;
   }
 
-  .status-dot {
-    width: 6px;
-    height: 6px;
-    background: #ffffff;
-    border-radius: 50%;
-  }
-
-  /* Plan Card Header */
-  .plan-header {
-    text-align: left;
-    margin-bottom: 24px;
+  .card-top {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f1f2f3;
   }
 
   .plan-title {
     font-size: 22px;
-    font-weight: 800;
-    color: #0f172a;
+    font-weight: 700;
     margin: 0 0 6px 0;
+    color: #202223;
   }
 
   .plan-desc {
-    font-size: 13.5px;
-    color: #64748b;
-    margin: 0 0 20px 0;
-    line-height: 1.4;
-    min-height: 38px;
+    font-size: 13px;
+    color: #6d7175;
+    margin: 0 0 16px 0;
+    min-height: 36px;
   }
 
-  .price-container {
+  .price-row {
     display: flex;
     align-items: baseline;
     gap: 4px;
   }
 
-  .price-currency {
-    font-size: 24px;
+  .price-num {
+    font-size: 38px;
     font-weight: 800;
-    color: #0f172a;
+    color: #202223;
   }
 
-  .price-val {
-    font-size: 46px;
-    font-weight: 800;
-    color: #0f172a;
-    letter-spacing: -1.5px;
-    line-height: 1;
-  }
-
-  .price-period {
+  .price-unit {
     font-size: 14px;
-    color: #64748b;
-    font-weight: 600;
-  }
-
-  .annual-note {
-    font-size: 12px;
-    color: #16a34a;
-    font-weight: 600;
-    margin-top: 6px;
-  }
-
-  .divider {
-    height: 1px;
-    background: #f1f5f9;
-    margin-bottom: 24px;
+    color: #6d7175;
   }
 
   /* Features List */
-  .features-list {
+  .features-container {
     flex: 1;
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
 
-  .features-label {
-    font-size: 11px;
-    font-weight: 800;
-    color: #94a3b8;
-    letter-spacing: 0.8px;
-    margin-bottom: 16px;
+  .features-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: #202223;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
   }
 
-  .feature-row {
+  .features-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .features-list li {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 12px;
+    gap: 10px;
     font-size: 14px;
-    color: #334155;
+    color: #303030;
+    margin-bottom: 10px;
     line-height: 1.4;
   }
 
-  .check-icon-wrapper {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #dcfce7;
-    color: #16a34a;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  .check-svg {
-    width: 12px;
-    height: 12px;
-  }
-
-  /* CTA Buttons */
-  .plan-cta-btn {
-    width: 100%;
-    padding: 14px 20px;
-    border-radius: 12px;
-    font-size: 14px;
+  .check-icon {
+    color: #137333;
     font-weight: 700;
+  }
+
+  /* Buttons */
+  .card-bottom {
+    margin-top: auto;
+  }
+
+  .btn-select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
+    border: 1px solid #c9cccf;
+    background: #ffffff;
+    color: #202223;
+    transition: background 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    border: none;
-    box-sizing: border-box;
+    min-height: 44px;
+  }
+
+  .btn-select:hover:not(:disabled) {
+    background: #f6f6f7;
   }
 
   .btn-primary {
-    background: #0f172a;
+    background: #1a1a1a;
     color: #ffffff;
+    border-color: #1a1a1a;
   }
 
   .btn-primary:hover:not(:disabled) {
-    background: #1e293b;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
+    background: #333333;
   }
 
-  .btn-secondary {
-    background: #f1f5f9;
-    color: #0f172a;
-    border: 1px solid #cbd5e1;
-  }
-
-  .btn-secondary:hover:not(:disabled) {
-    background: #e2e8f0;
-  }
-
-  .btn-current {
-    background: #f0fdf4;
-    color: #16a34a;
-    border: 1px solid #bbf7d0;
+  .btn-active {
+    background: #e6f4ea;
+    color: #137333;
+    border-color: #b7e1cd;
     cursor: default;
   }
 
-  .plan-cta-btn:disabled {
-    opacity: 0.85;
-    cursor: not-allowed;
+  .btn-select:disabled {
+    opacity: 0.8;
   }
 
-  /* Spinner */
-  .spinner {
+  .btn-spinner {
     width: 18px;
     height: 18px;
     border: 2px solid transparent;
@@ -936,229 +633,107 @@ const STYLES = `
     to { transform: rotate(360deg); }
   }
 
-  /* Usage Dashboard */
-  .usage-dashboard {
+  /* Usage Overview Card */
+  .usage-overview-card {
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 32px;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
-    margin-bottom: 48px;
+    border: 1px solid #e3e3e3;
+    border-radius: 12px;
+    padding: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
 
-  .dashboard-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 28px;
-    flex-wrap: wrap;
-    gap: 16px;
-  }
-
-  .dashboard-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: #0f172a;
-    margin: 0 0 4px 0;
-  }
-
-  .dashboard-subtitle {
-    font-size: 14px;
-    color: #64748b;
-    margin: 0;
-  }
-
-  .active-plan-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: #f1f5f9;
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 13px;
+  .section-title {
+    font-size: 18px;
     font-weight: 700;
-    color: #0f172a;
+    margin: 0 0 20px 0;
+    color: #202223;
   }
 
-  .pulse-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #16a34a;
-  }
-
-  .usage-grid {
+  .usage-metrics-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 20px;
   }
 
   @media (max-width: 900px) {
-    .usage-grid {
+    .usage-metrics-grid {
       grid-template-columns: repeat(2, 1fr);
     }
   }
 
-  @media (max-width: 540px) {
-    .usage-grid {
+  @media (max-width: 500px) {
+    .usage-metrics-grid {
       grid-template-columns: 1fr;
     }
   }
 
-  .stat-card {
-    background: #f8fafc;
-    border: 1px solid #e2e8f0;
-    border-radius: 14px;
-    padding: 20px;
+  .metric-box {
+    background: #f9fafb;
+    border: 1px solid #ebebeb;
+    border-radius: 10px;
+    padding: 18px;
     display: flex;
     flex-direction: column;
   }
 
-  .stat-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-
-  .stat-label {
+  .metric-label {
     font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
+    color: #6d7175;
+    font-weight: 500;
+    margin-bottom: 8px;
   }
 
-  .stat-icon {
-    font-size: 18px;
-  }
-
-  .stat-value {
+  .metric-value {
     font-size: 26px;
-    font-weight: 800;
-    color: #0f172a;
-    margin-bottom: 12px;
-  }
-
-  .stat-value-sm {
-    font-size: 17px;
     font-weight: 700;
-    color: #0f172a;
-    margin-bottom: 12px;
+    color: #202223;
+    margin-bottom: 8px;
   }
 
-  .stat-meta {
+  .metric-value-sm {
+    font-size: 16px;
+    font-weight: 700;
+    color: #202223;
+    margin-bottom: 8px;
+  }
+
+  .metric-sub {
     font-size: 12px;
-    color: #94a3b8;
-    margin-top: auto;
-  }
-
-  /* Progress Bar */
-  .progress-container {
+    color: #6d7175;
     margin-top: auto;
   }
 
   .progress-bar-bg {
     width: 100%;
-    height: 8px;
-    background: #e2e8f0;
-    border-radius: 4px;
+    height: 6px;
+    background: #e3e3e3;
+    border-radius: 3px;
     overflow: hidden;
     margin-bottom: 6px;
   }
 
   .progress-bar-fill {
     height: 100%;
-    background: #0f172a;
-    border-radius: 4px;
-    transition: width 0.4s ease;
+    background: #1a1a1a;
+    border-radius: 3px;
+    transition: width 0.3s ease;
   }
 
-  .progress-text {
-    display: flex;
-    justify-content: space-between;
-    font-size: 11.5px;
-    color: #64748b;
-    font-weight: 600;
-  }
-
-  .cancel-btn {
+  .btn-cancel-renewal {
     margin-top: auto;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: 6px;
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
+    border: 1px solid #e3e3e3;
     background: #ffffff;
-    color: #dc2626;
-    border: 1px solid #fca5a5;
-    transition: all 0.2s ease;
+    color: #d32f2f;
     width: 100%;
   }
 
-  .cancel-btn:hover:not(:disabled) {
-    background: #fef2f2;
-    border-color: #f87171;
-  }
-
-  /* FAQ Section */
-  .faq-dashboard {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 32px;
-    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
-  }
-
-  .faq-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: #0f172a;
-    margin: 0 0 24px 0;
-  }
-
-  .faq-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-
-  .faq-card {
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 18px 20px;
-    cursor: pointer;
-    transition: border-color 0.2s ease, background-color 0.2s ease;
-  }
-
-  .faq-card:hover {
-    background-color: #f8fafc;
-  }
-
-  .faq-card.open {
-    border-color: #0f172a;
-    background-color: #f8fafc;
-  }
-
-  .faq-question {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-size: 15px;
-    font-weight: 700;
-    color: #0f172a;
-  }
-
-  .faq-chevron {
-    font-size: 18px;
-    color: #64748b;
-    font-weight: 700;
-  }
-
-  .faq-answer {
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #e2e8f0;
-    font-size: 14px;
-    color: #475569;
-    line-height: 1.6;
+  .btn-cancel-renewal:hover:not(:disabled) {
+    background: #ffebee;
+    border-color: #ef9a9a;
   }
 `;
