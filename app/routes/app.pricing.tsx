@@ -110,21 +110,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     }
   } catch (err) {
-    console.error("[Pricing Loader] Billing check error (checking DB cache):", err);
+    console.error("[Pricing Loader] Billing check error (will check DB):", err);
+  }
+
+  // 2. If Shopify billing has no active payment, read saved plan from database (ShopPlan table)
+  if (currentPlan === PLAN_FREE) {
     try {
       const dbPlan = await prisma.shopPlan.findUnique({
         where: { shop: session.shop },
       });
-      if (dbPlan) {
+      if (dbPlan && dbPlan.status === "ACTIVE") {
         currentPlan = dbPlan.plan;
-        subscriptionId = dbPlan.subscriptionId;
+        if (dbPlan.subscriptionId) {
+          subscriptionId = dbPlan.subscriptionId;
+        }
       }
     } catch (dbErr) {
       console.error("[Pricing Loader] DB plan lookup error:", dbErr);
     }
   }
 
-  // 2. Calculate views for current month safely
+  // 3. Calculate views for current month safely
   let currentViews = 0;
   try {
     const now = new Date();
@@ -148,7 +154,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const planMeta = PLANS.find((p) => p.key === currentPlan);
   const viewLimit = planMeta?.viewLimit ?? 2000;
 
-  // 3. Persist current plan to database (ShopPlan table)
+  // 4. Persist current plan to database (ShopPlan table)
   try {
     await prisma.shopPlan.upsert({
       where: { shop: session.shop },
