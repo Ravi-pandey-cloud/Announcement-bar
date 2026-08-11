@@ -110,7 +110,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     }
   } catch (err) {
-    console.error("[Pricing Loader] Billing check error (falling back to Free plan):", err);
+    console.error("[Pricing Loader] Billing check error (checking DB cache):", err);
+    try {
+      const dbPlan = await prisma.shopPlan.findUnique({
+        where: { shop: session.shop },
+      });
+      if (dbPlan) {
+        currentPlan = dbPlan.plan;
+        subscriptionId = dbPlan.subscriptionId;
+      }
+    } catch (dbErr) {
+      console.error("[Pricing Loader] DB plan lookup error:", dbErr);
+    }
   }
 
   // 2. Calculate views for current month safely
@@ -136,6 +147,28 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   const planMeta = PLANS.find((p) => p.key === currentPlan);
   const viewLimit = planMeta?.viewLimit ?? 2000;
+
+  // 3. Persist current plan to database (ShopPlan table)
+  try {
+    await prisma.shopPlan.upsert({
+      where: { shop: session.shop },
+      update: {
+        plan: currentPlan,
+        subscriptionId: subscriptionId,
+        viewLimit: viewLimit === Infinity ? -1 : viewLimit,
+        status: "ACTIVE",
+      },
+      create: {
+        shop: session.shop,
+        plan: currentPlan,
+        subscriptionId: subscriptionId,
+        viewLimit: viewLimit === Infinity ? -1 : viewLimit,
+        status: "ACTIVE",
+      },
+    });
+  } catch (dbErr) {
+    console.error("[Pricing Loader] DB plan persistence error:", dbErr);
+  }
 
   if (!renewalDate) {
     const now = new Date();
@@ -163,7 +196,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 /*  Action – process plan selection & subscription cancellation       */
 /* ------------------------------------------------------------------ */
 export async function action({ request }: ActionFunctionArgs) {
-  const { billing } = await authenticate.admin(request);
+  const { billing, session } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent");
   const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
@@ -187,6 +220,29 @@ export async function action({ request }: ActionFunctionArgs) {
       } catch (err) {
         console.error("[Pricing Action] Cancellation error:", err);
       }
+
+      // Persist Free plan to ShopPlan table
+      try {
+        await prisma.shopPlan.upsert({
+          where: { shop: session.shop },
+          update: {
+            plan: PLAN_FREE,
+            subscriptionId: null,
+            viewLimit: 2000,
+            status: "ACTIVE",
+          },
+          create: {
+            shop: session.shop,
+            plan: PLAN_FREE,
+            subscriptionId: null,
+            viewLimit: 2000,
+            status: "ACTIVE",
+          },
+        });
+      } catch (dbErr) {
+        console.error("[Pricing Action] DB plan update error:", dbErr);
+      }
+
       return { ok: true, plan: PLAN_FREE };
     }
 
@@ -197,6 +253,11 @@ export async function action({ request }: ActionFunctionArgs) {
         isTest: isTestMode,
       });
     } catch (err) {
+      // billing.request() throws a redirect Response to send the merchant to Shopify's billing confirmation URL.
+      // We MUST rethrow Response objects so React Router performs the redirect!
+      if (err instanceof Response || (err && typeof err === "object" && "status" in err)) {
+        throw err;
+      }
       console.error("[Pricing Action] billing.request error:", err);
       const errMsg =
         (err as any)?.errorData?.[0]?.message ||
@@ -218,6 +279,28 @@ export async function action({ request }: ActionFunctionArgs) {
         console.error("[Pricing Action] Cancel renewal error:", err);
       }
     }
+
+    try {
+      await prisma.shopPlan.upsert({
+        where: { shop: session.shop },
+        update: {
+          plan: PLAN_FREE,
+          subscriptionId: null,
+          viewLimit: 2000,
+          status: "ACTIVE",
+        },
+        create: {
+          shop: session.shop,
+          plan: PLAN_FREE,
+          subscriptionId: null,
+          viewLimit: 2000,
+          status: "ACTIVE",
+        },
+      });
+    } catch (dbErr) {
+      console.error("[Pricing Action] DB plan update error:", dbErr);
+    }
+
     return { ok: true, cancelled: true };
   }
 

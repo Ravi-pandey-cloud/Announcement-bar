@@ -146,3 +146,15 @@ model AnnouncementAnalytics {
   @@index([announcementId])
 }
 
+model ShopPlan {
+  id             String   @id @default(cuid())
+  shop           String   @unique
+  plan           String   @default("Free")
+  subscriptionId String?
+  status         String   @default("ACTIVE")
+  viewLimit      Int      @default(2000)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+
