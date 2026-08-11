@@ -5,79 +5,101 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 /* ------------------------------------------------------------------ */
-/*  Plan metadata – pure constants, safe for client & server           */
+/*  Plan Constants & Configuration                                     */
 /* ------------------------------------------------------------------ */
 const PLAN_FREE = "Free";
 const PLAN_PREMIUM = "Premium";
 const PLAN_UNLIMITED = "Unlimited";
 
-const PLANS = [
+interface PlanConfig {
+  key: string;
+  name: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  description: string;
+  viewLimit: number;
+  highlight: boolean;
+  badge?: string;
+  features: string[];
+}
+
+const PLANS: PlanConfig[] = [
   {
     key: PLAN_FREE,
-    name: "Free",
-    price: 0,
-    period: "month",
-    description: "Get started with the essentials",
-    features: [
-      "Up to 2,000 views/month",
-      "1 active announcement",
-      "Basic customization",
-      "Standard support",
-    ],
+    name: "Free Starter",
+    monthlyPrice: 0,
+    annualPrice: 0,
+    description: "Perfect for testing and small stores starting out",
     viewLimit: 2000,
     highlight: false,
+    features: [
+      "Up to 2,000 views / month",
+      "1 Active Announcement Bar",
+      "Standard Customization & Colors",
+      "Page & Country Targeting",
+      "Community Support",
+    ],
   },
   {
     key: PLAN_PREMIUM,
-    name: "Premium",
-    price: 9,
-    period: "month",
-    description: "For growing businesses",
-    features: [
-      "Up to 50,000 views/month",
-      "Unlimited announcements",
-      "Advanced customization",
-      "Countdown timers",
-      "Cart goals",
-      "Priority support",
-    ],
+    name: "Premium Pro",
+    monthlyPrice: 9,
+    annualPrice: 7,
+    description: "Ideal for growing stores needing advanced sales boosters",
     viewLimit: 50000,
     highlight: true,
+    badge: "Most Popular",
+    features: [
+      "Up to 50,000 views / month",
+      "Unlimited Active Announcements",
+      "Countdown Sale Timers",
+      "Cart Goal Free Shipping Bar",
+      "Multiple Bar Rotation (Carousel & Marquee)",
+      "Priority Email & Chat Support",
+    ],
   },
   {
     key: PLAN_UNLIMITED,
-    name: "Unlimited",
-    price: 29,
-    period: "month",
-    description: "For high-traffic stores",
-    features: [
-      "Unlimited views",
-      "Unlimited announcements",
-      "All premium features",
-      "Custom CSS",
-      "Customer targeting",
-      "Dedicated support",
-    ],
+    name: "Unlimited Scale",
+    monthlyPrice: 29,
+    annualPrice: 23,
+    description: "Built for high-volume brands with maximum traffic",
     viewLimit: Infinity,
     highlight: false,
+    badge: "Maximum Power",
+    features: [
+      "Unlimited Monthly Views",
+      "Unlimited Active Announcements",
+      "All Premium Features Included",
+      "Custom CSS & Custom JS Injection",
+      "Advanced Customer Tag Targeting",
+      "Dedicated 1-on-1 Account Manager",
+    ],
   },
 ];
 
 /* ------------------------------------------------------------------ */
-/*  Loader – determine current plan from Shopify active subscriptions  */
+/*  Loader – query subscriptions safely with Response pass-through   */
 /* ------------------------------------------------------------------ */
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { billing, session } = await authenticate.admin(request);
+  let adminContext;
+  try {
+    adminContext = await authenticate.admin(request);
+  } catch (err) {
+    if (err instanceof Response) throw err;
+    throw err;
+  }
+
+  const { billing, session } = adminContext;
   const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
 
   let currentPlan = PLAN_FREE;
   let subscriptionId: string | null = null;
   let renewalDate: string | null = null;
 
-  // 1. Query active subscriptions from Shopify using billing.check()
+  // 1. Query Shopify active subscriptions with response re-throw protection
   try {
     const billingResult = await billing.check({
-      plans: [PLAN_PREMIUM, PLAN_UNLIMITED],
       isTest: isTestMode,
     });
 
@@ -94,10 +116,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     }
   } catch (err) {
-    console.error("[Pricing Loader] Error checking billing status:", err);
+    if (err instanceof Response) throw err;
+    console.error("[Pricing Loader] Billing check warning:", err);
   }
 
-  // 2. Aggregate monthly views from AnnouncementAnalytics safely
+  // 2. Query monthly analytics views safely
   let currentViews = 0;
   try {
     const now = new Date();
@@ -114,14 +137,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     currentViews = viewsResult._sum.views ?? 0;
   } catch (err) {
-    console.error("[Pricing Loader] Error querying analytics:", err);
+    console.error("[Pricing Loader] Analytics query warning:", err);
   }
 
-  // 3. Determine view limit based on current plan
+  // 3. Determine current plan's view limit
   const planMeta = PLANS.find((p) => p.key === currentPlan);
   const viewLimit = planMeta?.viewLimit ?? 2000;
 
-  // 4. Estimate renewal date if not available from subscription object
+  // 4. Default estimated renewal date if none returned from Shopify API
   if (!renewalDate) {
     const now = new Date();
     const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
@@ -132,7 +155,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     currentPlan,
     subscriptionId,
     currentViews,
-    viewLimit: viewLimit === Infinity ? -1 : viewLimit, // -1 = unlimited
+    viewLimit: viewLimit === Infinity ? -1 : viewLimit,
     renewalDate,
     isTestMode,
     plans: PLANS.map((p) => ({
@@ -143,10 +166,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Action – handle plan selection & subscription cancellation         */
+/*  Action – handle plan selection & subscription cancellation       */
 /* ------------------------------------------------------------------ */
 export async function action({ request }: ActionFunctionArgs) {
-  const { billing } = await authenticate.admin(request);
+  let adminContext;
+  try {
+    adminContext = await authenticate.admin(request);
+  } catch (err) {
+    if (err instanceof Response) throw err;
+    throw err;
+  }
+
+  const { billing } = adminContext;
   const formData = await request.formData();
   const intent = formData.get("intent");
   const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
@@ -155,10 +186,8 @@ export async function action({ request }: ActionFunctionArgs) {
     const plan = String(formData.get("plan"));
 
     if (plan === PLAN_FREE) {
-      // Downgrade to free – cancel any active subscription
       try {
         const billingCheck = await billing.check({
-          plans: [PLAN_PREMIUM, PLAN_UNLIMITED],
           isTest: isTestMode,
         });
         if (billingCheck.appSubscriptions && billingCheck.appSubscriptions.length > 0) {
@@ -171,12 +200,13 @@ export async function action({ request }: ActionFunctionArgs) {
           }
         }
       } catch (err) {
-        console.error("[Pricing Action] Error cancelling subscription:", err);
+        if (err instanceof Response) throw err;
+        console.error("[Pricing Action] Subscription cancel error:", err);
       }
       return { ok: true, plan: PLAN_FREE };
     }
 
-    // For Premium or Unlimited, request billing redirect
+    // For Premium or Unlimited, request billing redirect (throws a Response redirect)
     await billing.request({
       plan,
       isTest: isTestMode,
@@ -193,7 +223,8 @@ export async function action({ request }: ActionFunctionArgs) {
           prorate: true,
         });
       } catch (err) {
-        console.error("[Pricing Action] Error cancelling renewal:", err);
+        if (err instanceof Response) throw err;
+        console.error("[Pricing Action] Renewal cancel error:", err);
       }
     }
     return { ok: true, cancelled: true };
@@ -220,6 +251,8 @@ export default function PricingPage() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [pendingPlan, setPendingPlan] = useState<string | null>(null);
+  const [isAnnual, setIsAnnual] = useState(false);
+  const [openFaq, setOpenFaq] = useState<string | null>("faq-1");
 
   const handleSelectPlan = (planKey: string) => {
     if (planKey === currentPlan || isSubmitting) return;
@@ -232,16 +265,18 @@ export default function PricingPage() {
 
   const handleCancelRenewal = () => {
     if (!subscriptionId || isSubmitting) return;
-    submit(
-      { intent: "cancelRenewal", subscriptionId },
-      { method: "post" }
-    );
+    if (confirm("Are you sure you want to cancel your plan renewal? You will be downgraded to Free at the end of your billing cycle.")) {
+      submit(
+        { intent: "cancelRenewal", subscriptionId },
+        { method: "post" }
+      );
+    }
   };
 
   const viewLimitDisplay =
     viewLimit === -1 ? "Unlimited" : viewLimit.toLocaleString();
   const usagePercent =
-    viewLimit === -1 ? 0 : Math.min(100, (currentViews / viewLimit) * 100);
+    viewLimit === -1 ? 0 : Math.min(100, Math.round((currentViews / viewLimit) * 100));
 
   const formattedRenewalDate = renewalDate
     ? new Date(renewalDate).toLocaleDateString("en-US", {
@@ -251,84 +286,148 @@ export default function PricingPage() {
       })
     : "—";
 
+  const faqs = [
+    {
+      id: "faq-1",
+      question: "Can I upgrade or downgrade my plan at any time?",
+      answer: "Yes! You can switch between Free, Premium, and Unlimited plans anytime. When upgrading, Shopify handles the prorated charge automatically. When downgrading, your active plan remains until the end of your billing period.",
+    },
+    {
+      id: "faq-2",
+      question: "How are monthly announcement views calculated?",
+      answer: "A view is counted whenever an active announcement bar is loaded and displayed on a customer's browser. Views reset automatically on the 1st of every month.",
+    },
+    {
+      id: "faq-3",
+      question: "What happens if I reach my plan's monthly view limit?",
+      answer: "Your announcement bars will continue displaying uninterrupted for a grace buffer. You will receive an admin notification suggesting an upgrade to Premium or Unlimited to keep your bars active.",
+    },
+    {
+      id: "faq-4",
+      question: "Will I be charged real money during test mode?",
+      answer: "No! Test mode is currently enabled (SHOPIFY_TEST_MODE=true). All plan changes trigger Shopify sandbox test subscriptions, allowing you to test the full billing flow safely without any real charges.",
+    },
+  ];
+
   return (
-    <div className="pricing-wrapper">
+    <div className="pricing-root">
+      {/* Import modern typography */}
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      />
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
 
-      {/* Header */}
-      <div className="pricing-header">
-        <div className="pricing-header-text">
-          <h1>Pricing</h1>
-          <p>Choose the plan that fits your business needs</p>
+      {/* Hero Header */}
+      <div className="pricing-hero">
+        <div className="pricing-hero-badge-row">
+          <span className="hero-pill-tag">Flexible Plans</span>
+          {isTestMode && (
+            <span className="test-badge">
+              <span className="test-badge-pulse"></span>
+              SHOPIFY BILLING TEST MODE
+            </span>
+          )}
         </div>
-        {isTestMode && (
-          <span className="test-mode-badge">
-            <span className="test-mode-dot"></span>
-            Test Mode
+        <h1 className="pricing-hero-title">
+          Simple, Transparent Pricing for Every Store
+        </h1>
+        <p className="pricing-hero-subtitle">
+          Boost sales and drive conversions with powerful announcement bars. Upgrade or downgrade anytime with 1-click.
+        </p>
+
+        {/* Billing Cycle Switch */}
+        <div className="billing-switch-container">
+          <span className={`switch-label ${!isAnnual ? "active" : ""}`}>
+            Monthly Billing
           </span>
-        )}
+          <button
+            className={`billing-switch-toggle ${isAnnual ? "checked" : ""}`}
+            onClick={() => setIsAnnual(!isAnnual)}
+            type="button"
+            aria-label="Toggle Billing Cycle"
+          >
+            <span className="switch-thumb" />
+          </button>
+          <span className={`switch-label ${isAnnual ? "active" : ""}`}>
+            Annual Billing
+            <span className="save-badge">Save 20%</span>
+          </span>
+        </div>
       </div>
 
-      {/* Plan Cards */}
+      {/* Pricing Cards Grid */}
       <div className="plans-grid">
         {plans.map((plan) => {
           const isCurrent = plan.key === currentPlan;
           const isLoading = isSubmitting && pendingPlan === plan.key;
+          const displayPrice = isAnnual ? plan.annualPrice : plan.monthlyPrice;
 
           return (
             <div
               key={plan.key}
-              className={`plan-card ${plan.highlight ? "plan-card-highlighted" : ""} ${isCurrent ? "plan-card-current" : ""}`}
+              className={`plan-card ${plan.highlight ? "highlighted" : ""} ${isCurrent ? "current" : ""}`}
             >
-              {plan.highlight && (
-                <div className="popular-badge">Most Popular</div>
+              {plan.badge && !isCurrent && (
+                <div className="card-badge">{plan.badge}</div>
               )}
               {isCurrent && (
-                <div className="current-plan-badge">Current Plan</div>
+                <div className="card-badge current-badge">
+                  <span className="status-dot"></span> Active Plan
+                </div>
               )}
 
-              <div className="plan-card-header">
-                <h2 className="plan-name">{plan.name}</h2>
-                <p className="plan-description">{plan.description}</p>
-                <div className="plan-price">
+              <div className="plan-header">
+                <h3 className="plan-title">{plan.name}</h3>
+                <p className="plan-desc">{plan.description}</p>
+                <div className="price-container">
                   <span className="price-currency">$</span>
-                  <span className="price-amount">{plan.price}</span>
-                  <span className="price-period">/{plan.period}</span>
+                  <span className="price-val">{displayPrice}</span>
+                  <span className="price-period">/ month</span>
                 </div>
+                {isAnnual && plan.monthlyPrice > 0 && (
+                  <div className="annual-note">
+                    Billed annually (${displayPrice * 12}/year)
+                  </div>
+                )}
               </div>
 
-              <div className="plan-features">
-                {plan.features.map((feature, i) => (
-                  <div key={i} className="feature-item">
-                    <svg className="feature-check" viewBox="0 0 20 20" fill="none">
-                      <path
-                        d="M7.5 10l2 2 3.5-3.5"
-                        stroke="currentColor"
-                        strokeWidth="1.8"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    <span>{feature}</span>
+              <div className="divider" />
+
+              <div className="features-list">
+                <div className="features-label">WHAT'S INCLUDED</div>
+                {plan.features.map((feat, idx) => (
+                  <div key={idx} className="feature-row">
+                    <div className="check-icon-wrapper">
+                      <svg viewBox="0 0 20 20" fill="none" className="check-svg">
+                        <path
+                          d="M16.666 5L7.5 14.166 3.333 10"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
+                    <span>{feat}</span>
                   </div>
                 ))}
               </div>
 
               <button
-                className={`plan-btn ${plan.highlight ? "plan-btn-primary" : ""} ${isCurrent ? "plan-btn-current" : ""}`}
+                className={`plan-cta-btn ${plan.highlight ? "btn-primary" : "btn-secondary"} ${isCurrent ? "btn-current" : ""}`}
                 onClick={() => handleSelectPlan(plan.key)}
                 disabled={isCurrent || isSubmitting}
-                id={`select-plan-${plan.key.toLowerCase()}`}
+                id={`select-plan-${plan.key.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 {isLoading ? (
-                  <span className="btn-spinner"></span>
+                  <span className="spinner"></span>
                 ) : isCurrent ? (
-                  "Current Plan"
-                ) : currentPlan !== PLAN_FREE &&
-                  plan.key === PLAN_FREE ? (
-                  "Downgrade"
+                  "Current Active Plan"
+                ) : currentPlan !== PLAN_FREE && plan.key === PLAN_FREE ? (
+                  "Downgrade to Free"
                 ) : (
-                  "Select Plan"
+                  `Choose ${plan.name}`
                 )}
               </button>
             </div>
@@ -336,84 +435,110 @@ export default function PricingPage() {
         })}
       </div>
 
-      {/* Usage Section */}
-      <div className="usage-section">
-        <h2 className="usage-title">Current Usage</h2>
+      {/* Usage Analytics Section */}
+      <div className="usage-dashboard">
+        <div className="dashboard-header">
+          <div>
+            <h2 className="dashboard-title">Current Plan Usage & Subscription</h2>
+            <p className="dashboard-subtitle">
+              Real-time monitoring of your storefront impression metrics and plan limits
+            </p>
+          </div>
+          <span className="active-plan-pill">
+            <span className="pulse-dot"></span>
+            Current: {currentPlan}
+          </span>
+        </div>
+
         <div className="usage-grid">
-          <div className="usage-card">
-            <div className="usage-card-header">
-              <span className="usage-card-label">Views This Month</span>
-              <svg className="usage-card-icon" viewBox="0 0 20 20" fill="none">
-                <path d="M10 4.5c-4 0-7 3.5-7 5.5s3 5.5 7 5.5 7-3.5 7-5.5-3-5.5-7-5.5z" stroke="currentColor" strokeWidth="1.5"/>
-                <circle cx="10" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
+          {/* Stat 1: Monthly Views */}
+          <div className="stat-card">
+            <div className="stat-header">
+              <span className="stat-label">Views This Month</span>
+              <span className="stat-icon">👁️</span>
             </div>
-            <div className="usage-card-value">
-              {currentViews.toLocaleString()}
-            </div>
-            <div className="usage-progress-section">
-              <div className="usage-progress-labels">
-                <span>{currentViews.toLocaleString()} used</span>
-                <span>{viewLimitDisplay}</span>
-              </div>
-              <div className="usage-progress-track">
+            <div className="stat-value">{currentViews.toLocaleString()}</div>
+            <div className="progress-container">
+              <div className="progress-bar-bg">
                 <div
-                  className="usage-progress-fill"
+                  className="progress-bar-fill"
                   style={{ width: `${usagePercent}%` }}
-                ></div>
+                />
+              </div>
+              <div className="progress-text">
+                <span>{usagePercent}% Used</span>
+                <span>{viewLimitDisplay} Limit</span>
               </div>
             </div>
           </div>
 
-          <div className="usage-card">
-            <div className="usage-card-header">
-              <span className="usage-card-label">Current Plan</span>
-              <svg className="usage-card-icon" viewBox="0 0 20 20" fill="none">
-                <rect x="3" y="5" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M3 9h14" stroke="currentColor" strokeWidth="1.5"/>
-              </svg>
+          {/* Stat 2: Active Plan */}
+          <div className="stat-card">
+            <div className="stat-header">
+              <span className="stat-label">Subscription Tier</span>
+              <span className="stat-icon">💎</span>
             </div>
-            <div className="usage-card-value">{currentPlan}</div>
-            <div className="usage-card-meta">
+            <div className="stat-value">{currentPlan}</div>
+            <div className="stat-meta">
               {currentPlan === PLAN_FREE
-                ? "No active subscription"
-                : `$${plans.find((p: any) => p.key === currentPlan)?.price ?? 0}/month`}
+                ? "Standard Free Tier ($0/mo)"
+                : `$${plans.find((p) => p.key === currentPlan)?.monthlyPrice ?? 0}/month subscription`}
             </div>
           </div>
 
-          <div className="usage-card">
-            <div className="usage-card-header">
-              <span className="usage-card-label">View Limit</span>
-              <svg className="usage-card-icon" viewBox="0 0 20 20" fill="none">
-                <path d="M10 3v14M3 10h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
+          {/* Stat 3: View Limit */}
+          <div className="stat-card">
+            <div className="stat-header">
+              <span className="stat-label">Monthly View Limit</span>
+              <span className="stat-icon">⚡</span>
             </div>
-            <div className="usage-card-value">{viewLimitDisplay}</div>
-            <div className="usage-card-meta">
-              {viewLimit === -1 ? "No limits on your plan" : "Monthly view allowance"}
+            <div className="stat-value">{viewLimitDisplay}</div>
+            <div className="stat-meta">
+              {viewLimit === -1 ? "Unlimited impressions allowance" : "Resets on 1st of next month"}
             </div>
           </div>
 
-          <div className="usage-card">
-            <div className="usage-card-header">
-              <span className="usage-card-label">Renewal Date</span>
-              <svg className="usage-card-icon" viewBox="0 0 20 20" fill="none">
-                <rect x="3" y="4" width="14" height="13" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-                <path d="M3 8h14M7 3v3M13 3v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
+          {/* Stat 4: Renewal Date */}
+          <div className="stat-card">
+            <div className="stat-header">
+              <span className="stat-label">Next Renewal Date</span>
+              <span className="stat-icon">📅</span>
             </div>
-            <div className="usage-card-value-sm">{formattedRenewalDate}</div>
+            <div className="stat-value-sm">{formattedRenewalDate}</div>
             {currentPlan !== PLAN_FREE && subscriptionId && (
               <button
-                className="cancel-renewal-btn"
+                className="cancel-btn"
                 onClick={handleCancelRenewal}
                 disabled={isSubmitting}
                 id="cancel-renewal-btn"
               >
-                Cancel Renewal
+                Cancel Subscription Renewal
               </button>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* FAQ Section */}
+      <div className="faq-dashboard">
+        <h2 className="faq-title">Frequently Asked Questions</h2>
+        <div className="faq-grid">
+          {faqs.map((faq) => {
+            const isOpen = openFaq === faq.id;
+            return (
+              <div
+                key={faq.id}
+                className={`faq-card ${isOpen ? "open" : ""}`}
+                onClick={() => setOpenFaq(isOpen ? null : faq.id)}
+              >
+                <div className="faq-question">
+                  <span>{faq.question}</span>
+                  <span className="faq-chevron">{isOpen ? "−" : "+"}</span>
+                </div>
+                {isOpen && <div className="faq-answer">{faq.answer}</div>}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -421,77 +546,168 @@ export default function PricingPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Styles                                                              */
+/*  CSS Styling (Vanilla CSS with Premium Dark/Light Aesthetic)        */
 /* ------------------------------------------------------------------ */
 const STYLES = `
-  .pricing-wrapper {
-    padding: 32px;
-    margin: 20px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    color: #202223;
-    background-color: #f6f6f7;
+  .pricing-root {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
     min-height: 100vh;
+    padding: 40px 24px;
+    max-width: 1240px;
+    margin: 0 auto;
+    box-sizing: border-box;
   }
 
-  /* Header */
-  .pricing-header {
+  /* Hero Section */
+  .pricing-hero {
+    text-align: center;
+    max-width: 760px;
+    margin: 0 auto 48px auto;
+  }
+
+  .pricing-hero-badge-row {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 32px;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
   }
 
-  .pricing-header-text h1 {
-    font-size: 28px;
+  .hero-pill-tag {
+    background: #e2e8f0;
+    color: #475569;
+    font-size: 12px;
     font-weight: 700;
-    margin: 0 0 6px 0;
-    color: #202223;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
   }
 
-  .pricing-header-text p {
-    font-size: 14px;
-    color: #6d7175;
-    margin: 0;
-  }
-
-  .test-mode-badge {
+  .test-badge {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 12px;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
     border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffc107;
+    letter-spacing: 0.3px;
   }
 
-  .test-mode-dot {
-    width: 7px;
-    height: 7px;
+  .test-badge-pulse {
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: #ffc107;
-    animation: pulse-dot 2s ease-in-out infinite;
+    background: #d97706;
+    animation: pulse 1.8s infinite;
   }
 
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.2); }
+  }
+
+  .pricing-hero-title {
+    font-size: 36px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+    margin: 0 0 16px 0;
+    letter-spacing: -0.8px;
+  }
+
+  .pricing-hero-subtitle {
+    font-size: 16px;
+    color: #64748b;
+    margin: 0 0 32px 0;
+    line-height: 1.6;
+  }
+
+  /* Billing Toggle Switch */
+  .billing-switch-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    background: #ffffff;
+    padding: 8px 18px;
+    border-radius: 40px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+  }
+
+  .switch-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.2s;
+  }
+
+  .switch-label.active {
+    color: #0f172a;
+  }
+
+  .save-badge {
+    background: #dcfce7;
+    color: #15803d;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 12px;
+  }
+
+  .billing-switch-toggle {
+    width: 48px;
+    height: 26px;
+    background: #cbd5e1;
+    border-radius: 13px;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    padding: 3px;
+    transition: background-color 0.25s ease;
+  }
+
+  .billing-switch-toggle.checked {
+    background: #0f172a;
+  }
+
+  .switch-thumb {
+    width: 20px;
+    height: 20px;
+    background: #ffffff;
+    border-radius: 50%;
+    display: block;
+    transition: transform 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+
+  .billing-switch-toggle.checked .switch-thumb {
+    transform: translateX(22px);
   }
 
   /* Plans Grid */
   .plans-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    margin-bottom: 32px;
+    gap: 28px;
+    margin-bottom: 48px;
+    align-items: stretch;
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 960px) {
     .plans-grid {
       grid-template-columns: 1fr;
-      max-width: 440px;
+      max-width: 480px;
       margin-left: auto;
       margin-right: auto;
     }
@@ -500,201 +716,214 @@ const STYLES = `
   /* Plan Card */
   .plan-card {
     background: #ffffff;
-    border: 1px solid #e3e3e3;
-    border-radius: 14px;
-    padding: 28px 24px;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 32px 28px;
     display: flex;
     flex-direction: column;
     position: relative;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-    transition: box-shadow 0.25s ease, transform 0.2s ease, border-color 0.25s ease;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04);
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
   }
 
   .plan-card:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,0.08);
-    transform: translateY(-2px);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
   }
 
-  .plan-card-highlighted {
-    border-color: #1a1a1a;
-    border-width: 2px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  .plan-card.highlighted {
+    border: 2px solid #0f172a;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
   }
 
-  .plan-card-highlighted:hover {
-    box-shadow: 0 12px 32px rgba(0,0,0,0.12);
+  .plan-card.current {
+    border: 2px solid #16a34a;
   }
 
-  .plan-card-current {
-    border-color: #137333;
-  }
-
-  /* Badges */
-  .popular-badge {
+  /* Card Badges */
+  .card-badge {
     position: absolute;
-    top: -12px;
+    top: -14px;
     left: 50%;
     transform: translateX(-50%);
-    background: #1a1a1a;
+    background: #0f172a;
     color: #ffffff;
     font-size: 11px;
-    font-weight: 700;
-    padding: 4px 14px;
+    font-weight: 800;
+    padding: 4px 16px;
     border-radius: 20px;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.6px;
     text-transform: uppercase;
     white-space: nowrap;
   }
 
-  .current-plan-badge {
-    position: absolute;
-    top: -12px;
-    right: 16px;
-    background: #e6f4ea;
-    color: #137333;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 4px 14px;
-    border-radius: 20px;
-    letter-spacing: 0.3px;
-    text-transform: uppercase;
-    white-space: nowrap;
+  .card-badge.current-badge {
+    background: #16a34a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    background: #ffffff;
+    border-radius: 50%;
   }
 
   /* Plan Card Header */
-  .plan-card-header {
-    text-align: center;
+  .plan-header {
+    text-align: left;
     margin-bottom: 24px;
-    padding-bottom: 24px;
-    border-bottom: 1px solid #f1f2f3;
   }
 
-  .plan-name {
-    font-size: 20px;
-    font-weight: 700;
+  .plan-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
     margin: 0 0 6px 0;
-    color: #202223;
   }
 
-  .plan-description {
-    font-size: 13px;
-    color: #6d7175;
+  .plan-desc {
+    font-size: 13.5px;
+    color: #64748b;
     margin: 0 0 20px 0;
+    line-height: 1.4;
+    min-height: 38px;
   }
 
-  .plan-price {
+  .price-container {
     display: flex;
     align-items: baseline;
-    justify-content: center;
-    gap: 2px;
+    gap: 4px;
   }
 
   .price-currency {
-    font-size: 22px;
-    font-weight: 700;
-    color: #202223;
-    line-height: 1;
-    vertical-align: top;
-    margin-top: 4px;
+    font-size: 24px;
+    font-weight: 800;
+    color: #0f172a;
   }
 
-  .price-amount {
-    font-size: 48px;
+  .price-val {
+    font-size: 46px;
     font-weight: 800;
-    color: #202223;
+    color: #0f172a;
+    letter-spacing: -1.5px;
     line-height: 1;
-    letter-spacing: -2px;
   }
 
   .price-period {
     font-size: 14px;
-    color: #6d7175;
-    font-weight: 500;
+    color: #64748b;
+    font-weight: 600;
   }
 
-  /* Features List */
-  .plan-features {
-    flex: 1;
+  .annual-note {
+    font-size: 12px;
+    color: #16a34a;
+    font-weight: 600;
+    margin-top: 6px;
+  }
+
+  .divider {
+    height: 1px;
+    background: #f1f5f9;
     margin-bottom: 24px;
   }
 
-  .feature-item {
+  /* Features List */
+  .features-list {
+    flex: 1;
+    margin-bottom: 32px;
+  }
+
+  .features-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: #94a3b8;
+    letter-spacing: 0.8px;
+    margin-bottom: 16px;
+  }
+
+  .feature-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+    font-size: 14px;
+    color: #334155;
+    line-height: 1.4;
+  }
+
+  .check-icon-wrapper {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #dcfce7;
+    color: #16a34a;
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 7px 0;
-    font-size: 13.5px;
-    color: #303030;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
   }
 
-  .feature-check {
-    width: 18px;
-    height: 18px;
-    min-width: 18px;
-    color: #137333;
-    background: #e6f4ea;
-    border-radius: 50%;
-    padding: 2px;
+  .check-svg {
+    width: 12px;
+    height: 12px;
   }
 
-  /* Plan Button */
-  .plan-btn {
+  /* CTA Buttons */
+  .plan-cta-btn {
     width: 100%;
-    padding: 12px 20px;
-    border-radius: 10px;
+    padding: 14px 20px;
+    border-radius: 12px;
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    border: 1px solid #e3e3e3;
-    background: #ffffff;
-    color: #202223;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-height: 44px;
+    border: none;
+    box-sizing: border-box;
   }
 
-  .plan-btn:hover:not(:disabled) {
-    background: #f6f6f7;
-    border-color: #c9cccf;
-  }
-
-  .plan-btn:active:not(:disabled) {
-    transform: scale(0.98);
-  }
-
-  .plan-btn-primary {
-    background: #1a1a1a;
+  .btn-primary {
+    background: #0f172a;
     color: #ffffff;
-    border-color: #1a1a1a;
   }
 
-  .plan-btn-primary:hover:not(:disabled) {
-    background: #333333;
-    border-color: #333333;
+  .btn-primary:hover:not(:disabled) {
+    background: #1e293b;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
   }
 
-  .plan-btn-current {
-    background: #e6f4ea;
-    color: #137333;
-    border-color: #b7e1cd;
+  .btn-secondary {
+    background: #f1f5f9;
+    color: #0f172a;
+    border: 1px solid #cbd5e1;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: #e2e8f0;
+  }
+
+  .btn-current {
+    background: #f0fdf4;
+    color: #16a34a;
+    border: 1px solid #bbf7d0;
     cursor: default;
   }
 
-  .plan-btn-current:hover {
-    background: #e6f4ea !important;
-    border-color: #b7e1cd !important;
-  }
-
-  .plan-btn:disabled {
-    opacity: 0.7;
+  .plan-cta-btn:disabled {
+    opacity: 0.85;
     cursor: not-allowed;
   }
 
   /* Spinner */
-  .btn-spinner {
+  .spinner {
     width: 18px;
     height: 18px;
     border: 2px solid transparent;
@@ -707,20 +936,55 @@ const STYLES = `
     to { transform: rotate(360deg); }
   }
 
-  /* Usage Section */
-  .usage-section {
+  /* Usage Dashboard */
+  .usage-dashboard {
     background: #ffffff;
-    border: 1px solid #e3e3e3;
-    border-radius: 14px;
-    padding: 28px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+    margin-bottom: 48px;
   }
 
-  .usage-title {
-    font-size: 18px;
+  .dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .dashboard-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 4px 0;
+  }
+
+  .dashboard-subtitle {
+    font-size: 14px;
+    color: #64748b;
+    margin: 0;
+  }
+
+  .active-plan-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #f1f5f9;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
     font-weight: 700;
-    margin: 0 0 20px 0;
-    color: #202223;
+    color: #0f172a;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #16a34a;
   }
 
   .usage-grid {
@@ -735,119 +999,166 @@ const STYLES = `
     }
   }
 
-  @media (max-width: 560px) {
+  @media (max-width: 540px) {
     .usage-grid {
       grid-template-columns: 1fr;
     }
-    .pricing-wrapper {
-      padding: 16px;
-      margin: 8px;
-    }
-    .pricing-header {
-      flex-direction: column;
-      gap: 12px;
-    }
   }
 
-  .usage-card {
-    background: #f9fafb;
-    border: 1px solid #ebebeb;
-    border-radius: 12px;
+  .stat-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
     padding: 20px;
     display: flex;
     flex-direction: column;
   }
 
-  .usage-card-header {
+  .stat-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #64748b;
+  }
+
+  .stat-icon {
+    font-size: 18px;
+  }
+
+  .stat-value {
+    font-size: 26px;
+    font-weight: 800;
+    color: #0f172a;
     margin-bottom: 12px;
   }
 
-  .usage-card-label {
-    font-size: 13px;
-    color: #6d7175;
-    font-weight: 500;
-  }
-
-  .usage-card-icon {
-    width: 20px;
-    height: 20px;
-    color: #8c9196;
-  }
-
-  .usage-card-value {
-    font-size: 28px;
+  .stat-value-sm {
+    font-size: 17px;
     font-weight: 700;
-    color: #202223;
-    margin-bottom: 8px;
+    color: #0f172a;
+    margin-bottom: 12px;
   }
 
-  .usage-card-value-sm {
-    font-size: 18px;
-    font-weight: 700;
-    color: #202223;
-    margin-bottom: 8px;
-  }
-
-  .usage-card-meta {
+  .stat-meta {
     font-size: 12px;
-    color: #8c9196;
+    color: #94a3b8;
     margin-top: auto;
   }
 
-  /* Usage Progress */
-  .usage-progress-section {
+  /* Progress Bar */
+  .progress-container {
     margin-top: auto;
   }
 
-  .usage-progress-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    color: #6d7175;
+  .progress-bar-bg {
+    width: 100%;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    overflow: hidden;
     margin-bottom: 6px;
   }
 
-  .usage-progress-track {
-    width: 100%;
-    height: 6px;
-    background-color: #e3e3e3;
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .usage-progress-fill {
+  .progress-bar-fill {
     height: 100%;
-    background-color: #1a1a1a;
-    border-radius: 3px;
+    background: #0f172a;
+    border-radius: 4px;
     transition: width 0.4s ease;
-    min-width: 2px;
   }
 
-  /* Cancel Button */
-  .cancel-renewal-btn {
+  .progress-text {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11.5px;
+    color: #64748b;
+    font-weight: 600;
+  }
+
+  .cancel-btn {
     margin-top: auto;
-    padding: 8px 16px;
+    padding: 8px 12px;
     border-radius: 8px;
-    font-size: 13px;
-    font-weight: 500;
+    font-size: 12px;
+    font-weight: 700;
     cursor: pointer;
-    border: 1px solid #e3e3e3;
     background: #ffffff;
-    color: #d32f2f;
+    color: #dc2626;
+    border: 1px solid #fca5a5;
     transition: all 0.2s ease;
     width: 100%;
   }
 
-  .cancel-renewal-btn:hover:not(:disabled) {
-    background: #ffebee;
-    border-color: #ef9a9a;
+  .cancel-btn:hover:not(:disabled) {
+    background: #fef2f2;
+    border-color: #f87171;
   }
 
-  .cancel-renewal-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  /* FAQ Section */
+  .faq-dashboard {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 20px;
+    padding: 32px;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.03);
+  }
+
+  .faq-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0 0 24px 0;
+  }
+
+  .faq-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .faq-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 18px 20px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+  }
+
+  .faq-card:hover {
+    background-color: #f8fafc;
+  }
+
+  .faq-card.open {
+    border-color: #0f172a;
+    background-color: #f8fafc;
+  }
+
+  .faq-question {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+
+  .faq-chevron {
+    font-size: 18px;
+    color: #64748b;
+    font-weight: 700;
+  }
+
+  .faq-answer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    font-size: 14px;
+    color: #475569;
+    line-height: 1.6;
   }
 `;
