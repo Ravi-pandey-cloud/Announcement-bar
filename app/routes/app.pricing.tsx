@@ -432,62 +432,61 @@ export default function PricingPage() {
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="pricing-header">
-        <div>
-          <h1>Plans & Billing</h1>
-          <p>Choose the plan that fits your store. Upgrade or downgrade anytime.</p>
+      {/* Top Info Banner Card (Matching Screenshot Header Card) */}
+      <div className="top-info-card">
+        <div className="top-info-header">
+          <h1>Choose the right plan for your store</h1>
+          {isTestMode && (
+            <span className="test-badge">Test Mode Active</span>
+          )}
         </div>
-        {isTestMode && (
-          <span className="test-mode-badge">
-            <span className="test-dot"></span> Test Mode Active
-          </span>
-        )}
+        <p>
+          All new installs start on the Free plan. Upgrade when you need advanced features included in paid plans. Paid plans include: Product grouping, Hydrogen iframe support, Headless API support, Remove app branding.
+        </p>
       </div>
 
-      {/* Pricing Cards */}
+      {/* Pricing Cards Grid (Matching Screenshot Cards) */}
       <div className="pricing-grid">
         {plans.map((plan) => {
           const isCurrent = plan.key === currentPlan;
           const isLoading = isSubmitting && pendingPlan === plan.key;
-          const isFeatured = plan.key === PLAN_PREMIUM;
 
           return (
-            <div
-              key={plan.key}
-              className={`plan-card ${isFeatured ? "featured" : ""} ${isCurrent ? "active-plan" : ""}`}
-            >
-              {isFeatured && !isCurrent && (
-                <div className="badge-popular">Most Popular</div>
-              )}
-              {isCurrent && (
-                <div className="badge-current">Current Plan</div>
-              )}
-
-              <div className="card-header">
+            <div key={plan.key} className="plan-card">
+              {/* Card Title & Current Plan Pill */}
+              <div className="card-top-row">
                 <h2 className="plan-title">{plan.name}</h2>
-                <p className="plan-desc">{plan.description}</p>
-                <div className="price-row">
-                  <span className="price-num">${plan.price}</span>
-                  <span className="price-unit">/ month</span>
-                </div>
+                {isCurrent && <span className="badge-current">Current plan</span>}
               </div>
 
-              <div className="card-features">
-                <div className="features-title">Features Included:</div>
-                <ul className="features-list">
+              {/* Huge Price */}
+              <div className="price-box">
+                {plan.price === 0 ? (
+                  <span className="price-amount">Free</span>
+                ) : (
+                  <>
+                    <span className="price-amount">${plan.price}</span>
+                    <span className="price-period">/ month</span>
+                  </>
+                )}
+              </div>
+
+              <div className="card-divider" />
+
+              {/* Bullet Features List */}
+              <div className="features-section">
+                <div className="features-header-text">Features</div>
+                <ul className="bullet-features-list">
                   {plan.features.map((feat, i) => (
-                    <li key={i}>
-                      <span className="check-mark">✓</span>
-                      <span>{feat}</span>
-                    </li>
+                    <li key={i}>{feat}</li>
                   ))}
                 </ul>
               </div>
 
-              <div className="card-footer">
+              {/* Card Action Button */}
+              <div className="card-bottom">
                 <button
-                  className={`btn-plan ${isCurrent ? "btn-current" : isFeatured ? "btn-primary" : "btn-secondary"}`}
+                  className={`plan-action-btn ${isCurrent ? "disabled-btn" : "upgrade-btn"}`}
                   onClick={() => handleSelectPlan(plan.key)}
                   disabled={isCurrent || isSubmitting}
                   id={`select-plan-${plan.key.toLowerCase()}`}
@@ -495,11 +494,11 @@ export default function PricingPage() {
                   {isLoading ? (
                     <span className="btn-spinner"></span>
                   ) : isCurrent ? (
-                    "Current Plan"
+                    `${plan.name === "Free" ? "Free plan" : "Current plan"}`
                   ) : currentPlan !== PLAN_FREE && plan.key === PLAN_FREE ? (
                     "Downgrade to Free"
                   ) : (
-                    "Select Plan"
+                    `Upgrade to ${plan.name}`
                   )}
                 </button>
               </div>
@@ -508,45 +507,27 @@ export default function PricingPage() {
         })}
       </div>
 
-      {/* Usage Overview Section */}
-      <div className="main-card">
-        <h2 className="section-title">Current Plan Usage</h2>
-        <div className="usage-grid">
-          <div className="stat-box">
+      {/* Usage Analytics Bottom Card */}
+      <div className="bottom-usage-card">
+        <h2 className="usage-title">Current plan usage</h2>
+        <div className="usage-row">
+          <div className="usage-stat">
             <span className="stat-label">Views Used This Month</span>
-            <div className="stat-value">{currentViews.toLocaleString()}</div>
-            <div className="progress-track">
-              <div className="progress-fill" style={{ width: `${usagePercent}%` }}></div>
+            <div className="stat-num">{currentViews.toLocaleString()} / {viewLimitDisplay}</div>
+            <div className="usage-track">
+              <div className="usage-fill" style={{ width: `${usagePercent}%` }} />
             </div>
-            <span className="stat-sub">{currentViews.toLocaleString()} of {viewLimitDisplay} views ({usagePercent}%)</span>
           </div>
-
-          <div className="stat-box">
-            <span className="stat-label">Current Active Plan</span>
-            <div className="stat-value">{currentPlan}</div>
-            <span className="stat-sub">
-              {currentPlan === PLAN_FREE ? "Free Tier ($0/month)" : `$${plans.find((p) => p.key === currentPlan)?.price ?? 0}/month`}
-            </span>
+          <div className="usage-stat">
+            <span className="stat-label">Active Subscription Tier</span>
+            <div className="stat-num">{currentPlan}</div>
+            <span className="stat-sub">{currentPlan === PLAN_FREE ? "Free Tier ($0/month)" : `$${plans.find(p => p.key === currentPlan)?.price ?? 0} / month`}</span>
           </div>
-
-          <div className="stat-box">
-            <span className="stat-label">Monthly View Limit</span>
-            <div className="stat-value">{viewLimitDisplay}</div>
-            <span className="stat-sub">
-              {viewLimit === -1 ? "Unlimited view allowance" : "Resets on 1st of every month"}
-            </span>
-          </div>
-
-          <div className="stat-box">
-            <span className="stat-label">Renewal Date</span>
-            <div className="stat-value-sm">{formattedRenewalDate}</div>
+          <div className="usage-stat">
+            <span className="stat-label">Next Renewal Date</span>
+            <div className="stat-num">{formattedRenewalDate}</div>
             {currentPlan !== PLAN_FREE && subscriptionId && (
-              <button
-                className="btn-cancel"
-                onClick={handleCancelRenewal}
-                disabled={isSubmitting}
-                id="cancel-renewal-btn"
-              >
+              <button className="cancel-link-btn" onClick={handleCancelRenewal} disabled={isSubmitting}>
                 Cancel Renewal
               </button>
             )}
@@ -558,16 +539,15 @@ export default function PricingPage() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Styles – Clean, simple layout matching app._index.tsx               */
+/*  Styles – Exactly matching user's provided screenshot example      */
 /* ------------------------------------------------------------------ */
 const STYLES = `
   .pricing-wrapper {
     padding: 32px;
-    margin: 20px;
+    margin: 0 auto;
+    max-width: 1100px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     color: #202223;
-    background-color: #f6f6f7;
-    min-height: 100vh;
     box-sizing: border-box;
   }
 
@@ -581,201 +561,150 @@ const STYLES = `
     font-size: 14px;
   }
 
-  /* Header */
-  .pricing-header {
+  /* Top Info Banner Card */
+  .top-info-card {
+    background: #ffffff;
+    border: 1px solid #e3e3e3;
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+  }
+
+  .top-info-header {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 28px;
+    align-items: center;
+    margin-bottom: 10px;
   }
 
-  .pricing-header h1 {
-    font-size: 28px;
+  .top-info-card h1 {
+    font-size: 22px;
     font-weight: 700;
-    margin: 0 0 6px 0;
-    color: #202223;
+    margin: 0;
+    color: #1a1a1a;
   }
 
-  .pricing-header p {
+  .test-badge {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .top-info-card p {
     font-size: 14px;
     color: #6d7175;
     margin: 0;
-  }
-
-  .test-mode-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: 600;
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffc107;
-  }
-
-  .test-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #ffc107;
+    line-height: 1.5;
   }
 
   /* Pricing Cards Grid */
   .pricing-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
-    margin-bottom: 32px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 24px;
   }
 
-  @media (max-width: 900px) {
-    .pricing-grid {
-      grid-template-columns: 1fr;
-    }
-    .pricing-wrapper {
-      padding: 16px;
-      margin: 8px;
-    }
-  }
-
-  /* Card */
+  /* Individual Plan Card */
   .plan-card {
     background: #ffffff;
     border: 1px solid #e3e3e3;
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 28px;
     display: flex;
     flex-direction: column;
-    position: relative;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
   }
 
-  .plan-card.featured {
-    border: 2px solid #1a1a1a;
-  }
-
-  .plan-card.active-plan {
-    border: 2px solid #137333;
-  }
-
-  /* Badges */
-  .badge-popular {
-    position: absolute;
-    top: -12px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #1a1a1a;
-    color: #ffffff;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 12px;
-    border-radius: 12px;
-    text-transform: uppercase;
-  }
-
-  .badge-current {
-    position: absolute;
-    top: -12px;
-    right: 20px;
-    background: #e6f4ea;
-    color: #137333;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 3px 12px;
-    border-radius: 12px;
-    text-transform: uppercase;
-  }
-
-  .card-header {
-    margin-bottom: 20px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid #f1f2f3;
+  .card-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
   }
 
   .plan-title {
     font-size: 22px;
     font-weight: 700;
-    margin: 0 0 6px 0;
-    color: #202223;
-  }
-
-  .plan-desc {
-    font-size: 13px;
-    color: #6d7175;
-    margin: 0 0 16px 0;
-    min-height: 36px;
-  }
-
-  .price-row {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-  }
-
-  .price-num {
-    font-size: 38px;
-    font-weight: 800;
-    color: #202223;
-  }
-
-  .price-unit {
-    font-size: 14px;
-    color: #6d7175;
-  }
-
-  /* Features List */
-  .card-features {
-    flex: 1;
-    margin-bottom: 24px;
-  }
-
-  .features-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: #202223;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 12px;
-  }
-
-  .features-list {
-    list-style: none;
-    padding: 0;
+    color: #1a1a1a;
     margin: 0;
   }
 
-  .features-list li {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
+  .badge-current {
+    background: #b8f2d0;
+    color: #0f5132;
+    padding: 4px 12px;
+    border-radius: 14px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .price-box {
+    margin-bottom: 20px;
+  }
+
+  .price-amount {
+    font-size: 36px;
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+
+  .price-period {
+    font-size: 14px;
+    color: #6d7175;
+    margin-left: 4px;
+    font-weight: 400;
+  }
+
+  .card-divider {
+    border-bottom: 1px solid #f1f1f1;
+    margin-bottom: 20px;
+  }
+
+  /* Features List with Bullets */
+  .features-section {
+    flex: 1;
+    margin-bottom: 28px;
+  }
+
+  .features-header-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 12px;
+  }
+
+  .bullet-features-list {
+    margin: 0;
+    padding-left: 20px;
+    list-style-type: disc;
+  }
+
+  .bullet-features-list li {
     font-size: 14px;
     color: #303030;
     margin-bottom: 10px;
-    line-height: 1.4;
-  }
-
-  .check-mark {
-    color: #137333;
-    font-weight: 700;
+    line-height: 1.5;
   }
 
   /* Buttons */
-  .card-footer {
+  .card-bottom {
     margin-top: auto;
   }
 
-  .btn-plan {
+  .plan-action-btn {
     width: 100%;
     padding: 12px;
     border-radius: 8px;
     font-size: 14px;
     font-weight: 600;
-    cursor: pointer;
-    border: 1px solid #c9cccf;
-    background: #ffffff;
-    color: #202223;
+    text-align: center;
+    box-sizing: border-box;
     transition: background 0.15s ease;
     display: flex;
     align-items: center;
@@ -783,29 +712,22 @@ const STYLES = `
     min-height: 44px;
   }
 
-  .btn-plan:hover:not(:disabled) {
-    background: #f6f6f7;
+  .disabled-btn {
+    background: #f1f2f3;
+    color: #8c9196;
+    border: none;
+    cursor: not-allowed;
   }
 
-  .btn-primary {
-    background: #1a1a1a;
+  .upgrade-btn {
+    background: linear-gradient(180deg, #303030 0%, #1a1a1a 100%);
     color: #ffffff;
-    border-color: #1a1a1a;
+    border: 1px solid #1a1a1a;
+    cursor: pointer;
   }
 
-  .btn-primary:hover:not(:disabled) {
-    background: #333333;
-  }
-
-  .btn-current {
-    background: #e6f4ea;
-    color: #137333;
-    border-color: #b7e1cd;
-    cursor: default;
-  }
-
-  .btn-plan:disabled {
-    opacity: 0.8;
+  .upgrade-btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #444444 0%, #2b2b2b 100%);
   }
 
   .btn-spinner {
@@ -821,45 +743,29 @@ const STYLES = `
     to { transform: rotate(360deg); }
   }
 
-  /* Usage Main Card */
-  .main-card {
+  /* Usage Overview Bottom Card */
+  .bottom-usage-card {
     background: #ffffff;
     border: 1px solid #e3e3e3;
-    border-radius: 12px;
-    padding: 28px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    border-radius: 14px;
+    padding: 24px 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
   }
 
-  .section-title {
+  .usage-title {
     font-size: 18px;
     font-weight: 700;
-    margin: 0 0 20px 0;
-    color: #202223;
+    margin: 0 0 16px 0;
+    color: #1a1a1a;
   }
 
-  .usage-grid {
+  .usage-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
   }
 
-  @media (max-width: 900px) {
-    .usage-grid {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  @media (max-width: 500px) {
-    .usage-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .stat-box {
-    background: #f9fafb;
-    border: 1px solid #ebebeb;
-    border-radius: 10px;
-    padding: 18px;
+  .usage-stat {
     display: flex;
     flex-direction: column;
   }
@@ -867,61 +773,48 @@ const STYLES = `
   .stat-label {
     font-size: 13px;
     color: #6d7175;
-    font-weight: 500;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
   }
 
-  .stat-value {
-    font-size: 26px;
+  .stat-num {
+    font-size: 18px;
     font-weight: 700;
-    color: #202223;
-    margin-bottom: 8px;
-  }
-
-  .stat-value-sm {
-    font-size: 16px;
-    font-weight: 700;
-    color: #202223;
-    margin-bottom: 8px;
+    color: #1a1a1a;
   }
 
   .stat-sub {
     font-size: 12px;
     color: #6d7175;
-    margin-top: auto;
+    margin-top: 4px;
   }
 
-  .progress-track {
+  .usage-track {
     width: 100%;
     height: 6px;
-    background-color: #e3e3e3;
+    background: #f1f2f3;
     border-radius: 3px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-top: 6px;
   }
 
-  .progress-fill {
+  .usage-fill {
     height: 100%;
-    background-color: #1a1a1a;
+    background: #1a1a1a;
     border-radius: 3px;
-    transition: width 0.3s ease;
   }
 
-  .btn-cancel {
-    margin-top: auto;
-    padding: 8px 12px;
-    border-radius: 6px;
+  .cancel-link-btn {
+    margin-top: 6px;
+    padding: 4px 8px;
     font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid #e3e3e3;
-    background: #ffffff;
     color: #d32f2f;
-    width: 100%;
+    background: none;
+    border: 1px solid #ffcdd2;
+    border-radius: 4px;
+    cursor: pointer;
   }
 
-  .btn-cancel:hover:not(:disabled) {
+  .cancel-link-btn:hover {
     background: #ffebee;
-    border-color: #ef9a9a;
   }
 `;
