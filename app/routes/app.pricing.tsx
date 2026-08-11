@@ -261,28 +261,58 @@ export async function action({ request }: ActionFunctionArgs) {
     } catch (err: any) {
       console.error("[Pricing Action] billing.request caught:", err);
 
-      // Check if err is a Shopify App Bridge / Billing redirect Response
-      const hasReauthHeader =
-        err instanceof Response &&
-        (err.headers.has("X-Shopify-API-Request-Failure-Reauthorize-Url") ||
-         err.headers.has("x-shopify-api-request-failure-reauthorize-url") ||
-         err.headers.has("Location") ||
-         err.headers.has("location"));
+      // Extract reauth header if present
+      const reauthUrl =
+        (err instanceof Response && (
+          err.headers.get("X-Shopify-API-Request-Failure-Reauthorize-Url") ||
+          err.headers.get("x-shopify-api-request-failure-reauthorize-url") ||
+          err.headers.get("Location") ||
+          err.headers.get("location")
+        )) || "";
 
-      const isStatusRedirect =
-        (err instanceof Response && err.status >= 300 && err.status < 400) ||
-        (err && typeof err === "object" && typeof err.status === "number" && err.status >= 300 && err.status < 400);
+      // Only re-throw if the URL is an actual Shopify Charge Confirmation screen
+      const isChargeConfirmationRedirect =
+        reauthUrl.includes("charges") ||
+        reauthUrl.includes("confirm") ||
+        reauthUrl.includes("exitIframe") ||
+        (err instanceof Response && err.status >= 300 && err.status < 400);
 
-      if (hasReauthHeader || isStatusRedirect) {
-        console.log("[Pricing Action] Re-throwing redirect for Shopify Billing approval page");
+      if (isChargeConfirmationRedirect) {
+        console.log("[Pricing Action] Re-throwing charge confirmation redirect:", reauthUrl);
         throw err;
       }
 
-      // Return user-friendly error banner if billing API fails (e.g., non-public distribution)
-      let errMsg = "Unable to process payment request with Shopify Billing API.";
-      if (err instanceof Response) {
-        errMsg = `Shopify Billing Error (${err.status}: ${err.statusText || "Unauthorized"}). Make sure App Distribution is set to Public in Shopify Partners.`;
-      } else if (err instanceof Error) {
+      // If billing.request failed (e.g. app has Custom distribution instead of Public in Partners Dashboard)
+      if (isTestMode) {
+        console.log(`[Pricing Action] Test Mode Fallback: Updating ShopPlan for ${session.shop} to ${plan}`);
+        try {
+          const targetPlanMeta = PLANS.find((p) => p.key === plan);
+          const newLimit = targetPlanMeta?.viewLimit ?? 2000;
+          await prisma.shopPlan.upsert({
+            where: { shop: session.shop },
+            update: {
+              plan,
+              subscriptionId: `test_sub_${Date.now()}`,
+              viewLimit: newLimit === Infinity ? -1 : newLimit,
+              status: "ACTIVE",
+            },
+            create: {
+              shop: session.shop,
+              plan,
+              subscriptionId: `test_sub_${Date.now()}`,
+              viewLimit: newLimit === Infinity ? -1 : newLimit,
+              status: "ACTIVE",
+            },
+          });
+          return { ok: true, plan, isTestMode: true };
+        } catch (dbErr) {
+          console.error("[Pricing Action] DB update error during test fallback:", dbErr);
+        }
+      }
+
+      // Format clean error message for production
+      let errMsg = "Apps without a public distribution cannot use the Billing API. Please change app distribution to Public in Shopify Partner Dashboard.";
+      if (err instanceof Error) {
         errMsg = err.message;
       } else if (err?.errorData?.[0]?.message) {
         errMsg = err.errorData[0].message;
