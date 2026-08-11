@@ -253,15 +253,9 @@ export default function Index() {
   const statuses = announcements.map((a: Announcement) => getCampaignStatus(a));
   const activeCount = statuses.filter((s) => s === "active").length;
 
-  // Determine if there is actual database tracking data
-  const hasDbAnalytics = announcements.some(a => a.analytics && a.analytics.length > 0);
-
-  // Fallback to reference design stats if no storefront analytics exist yet
-  const displayStats = hasDbAnalytics ? stats : {
-    totalViews: 172,
-    totalClicks: 0,
-    monthlyViews: 109,
-  };
+  // Analytics stats come directly from the database (getDashboardStats).
+  // When no analytics data exists, getDashboardStats already returns 0 for all values.
+  const displayStats = stats;
 
   // Filter announcements by search query
   const filteredAnnouncements = announcements.filter(a =>
@@ -785,25 +779,8 @@ export default function Index() {
                   {filteredAnnouncements.map((a: Announcement) => {
                     const status = getCampaignStatus(a);
                     
-                    // Views calculations per announcement
-                    let announcementViews = 0;
-                    if (hasDbAnalytics) {
-                      announcementViews = (a.analytics || []).reduce((sum, item) => sum + item.views, 0);
-                    } else {
-                      // Apply mock values to replicate the exact reference layout
-                      const nameLower = a.name.toLowerCase();
-                      if (nameLower.includes("new announcement")) {
-                        announcementViews = 0;
-                      } else if (nameLower.includes("another")) {
-                        announcementViews = 42;
-                      } else if (nameLower.includes("simple")) {
-                        announcementViews = 8;
-                      } else if (nameLower.includes("carousel") || nameLower.includes("multiple")) {
-                        announcementViews = 61;
-                      } else {
-                        announcementViews = 61;
-                      }
-                    }
+                    // Views calculations per announcement from real analytics data
+                    const announcementViews = (a.analytics || []).reduce((sum, item) => sum + item.views, 0);
 
                     const createdDate = new Date(a.createdAt).toLocaleDateString("en-US", {
                       year: "numeric",
