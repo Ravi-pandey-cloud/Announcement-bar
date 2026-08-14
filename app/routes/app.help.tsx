@@ -554,6 +554,25 @@ export default function HelpPage() {
             Everything you need to set up, manage, target, and troubleshoot your Announcement Bars.
           </p>
         </div>
+        <a
+          href="/app/legal"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "8px 16px",
+            backgroundColor: "#ffffff",
+            border: "1px solid #c9cccf",
+            borderRadius: "8px",
+            fontSize: "13px",
+            fontWeight: "600",
+            color: "#202223",
+            textDecoration: "none",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+          }}
+        >
+          🔒 Legal & Privacy Policies
+        </a>
       </div>
 
       {/* Search Input */}

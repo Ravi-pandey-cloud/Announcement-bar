@@ -748,7 +748,6 @@ const [subtextBold, setSubtextBold] = useState(
   };
 
   // Process data for chart
-  const hasDbAnalytics = analytics && analytics.length > 0;
   let chartData: any[] = [];
 
   if (analyticsDays === "custom" && startDate && endDate) {
@@ -770,26 +769,15 @@ const [subtextBold, setSubtextBold] = useState(
       };
     });
   } else {
-    chartData = hasDbAnalytics
+    chartData = analytics && analytics.length > 0
       ? [...analytics].sort((a, b) => a.date.localeCompare(b.date))
-      : Array.from({ length: 30 }).map((_, i) => {
+      : Array.from({ length: Number(analyticsDays) || 30 }).map((_, i) => {
           const d = new Date();
-          d.setDate(d.getDate() - (29 - i));
-          // Simple realistic curve with some view values
-          let val = 0;
-          const nameLower = (announcement?.name || "").toLowerCase();
-          if (nameLower.includes("another")) {
-            val = i % 5 === 0 ? 8 : (i % 7 === 0 ? 12 : 1);
-          } else if (nameLower.includes("simple")) {
-            val = i === 20 ? 4 : (i === 28 ? 3 : 0);
-          } else {
-            // default/multiple slides
-            val = i % 4 === 0 ? 10 : (i % 3 === 0 ? 5 : (i % 9 === 0 ? 15 : 1));
-          }
+          d.setDate(d.getDate() - ((Number(analyticsDays) || 30) - 1 - i));
           return {
             date: d.toISOString().split("T")[0],
-            views: val,
-            clicks: val > 0 && i % 8 === 0 ? 1 : 0
+            views: 0,
+            clicks: 0,
           };
         });
   }
@@ -1291,21 +1279,23 @@ const [subtextBold, setSubtextBold] = useState(
                     {String(analyticsDays) === "custom" && (
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                          <span style={{ fontSize: 13, color: "#6d7175" }}>From:</span>
-                         <s-date-field
-                           label=""
-                           placeholder="Select date"
-                           value={customStartDate}
-                           onChange={(e: any) => setCustomStartDate(e.target.value)}
-                           style={{ width: "130px" }}
-                         />
+                         <div style={{ width: "130px" }}>
+                           <s-date-field
+                             label=""
+                             placeholder="Select date"
+                             value={customStartDate}
+                             onChange={(e: any) => setCustomStartDate(e.target.value)}
+                           />
+                         </div>
                          <span style={{ fontSize: 13, color: "#6d7175" }}>To:</span>
-                         <s-date-field
-                           label=""
-                           placeholder="Select date"
-                           value={customEndDate}
-                           onChange={(e: any) => setCustomEndDate(e.target.value)}
-                           style={{ width: "130px" }}
-                         />
+                         <div style={{ width: "130px" }}>
+                           <s-date-field
+                             label=""
+                             placeholder="Select date"
+                             value={customEndDate}
+                             onChange={(e: any) => setCustomEndDate(e.target.value)}
+                           />
+                         </div>
                         <button
                           type="button"
                           onClick={handleApplyCustomDates}
@@ -1549,19 +1539,7 @@ const [subtextBold, setSubtextBold] = useState(
                         </div>
                       )}
                     </div>
-                    {!hasDbAnalytics && (
-                      <div style={{
-                        marginTop: 12,
-                        fontSize: 12,
-                        color: "#6d7175",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6
-                      }}>
-                        <span>💡</span>
-                        <span>This chart is showing simulated reference data. Real performance metrics will begin tracking once visitors view this bar.</span>
-                      </div>
-                    )}
+
                   </s-section>
                 </>
               )}

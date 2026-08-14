@@ -4,9 +4,7 @@ import { useLoaderData, useSubmit, useNavigation, useActionData } from "react-ro
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
-/* ------------------------------------------------------------------ */
-/*  Plan Constants – MUST match keys in shopify.server.ts             */
-/* ------------------------------------------------------------------ */
+
 const PLAN_FREE = "Free";
 const PLAN_PREMIUM = "Premium";
 const PLAN_UNLIMITED = "Unlimited";
@@ -63,9 +61,7 @@ const PLANS = [
   },
 ];
 
-/* ------------------------------------------------------------------ */
-/*  Helper – Deterministic date formatter to prevent SSR mismatch     */
-/* ------------------------------------------------------------------ */
+
 function formatDateString(dateStr: string | null) {
   if (!dateStr) return "—";
   const parts = dateStr.split("-");
@@ -83,9 +79,7 @@ function formatDateString(dateStr: string | null) {
   return dateStr;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Loader – retrieve active subscription & usage data from Shopify   */
-/* ------------------------------------------------------------------ */
+
 export async function loader({ request }: LoaderFunctionArgs) {
   const { billing, session } = await authenticate.admin(request);
   const isTestMode = process.env.SHOPIFY_TEST_MODE === "true";
@@ -110,7 +104,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       }
     }
   } catch (err) {
-    console.error("[Pricing Loader] Billing check error (will check DB):", err);
+    console.error("[Pricing] Billing check error:", err);
   }
 
   // 2. If Shopify billing has no active payment, read saved plan from database (ShopPlan table)
@@ -126,11 +120,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
         }
       }
     } catch (dbErr) {
-      console.error("[Pricing Loader] DB plan lookup error:", dbErr);
+      console.error("[Pricing] DB plan lookup error:", dbErr);
     }
   }
 
-  // 3. Calculate views for current month safely
+  // Calculate views for current month
   let currentViews = 0;
   try {
     const now = new Date();
@@ -148,13 +142,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     currentViews = viewsResult._sum.views ?? 0;
   } catch (err) {
-    console.error("[Pricing Loader] Analytics error:", err);
+    console.error("[Pricing] Analytics error:", err);
   }
 
   const planMeta = PLANS.find((p) => p.key === currentPlan);
   const viewLimit = planMeta?.viewLimit ?? 2000;
 
-  // 4. Persist current plan to database (ShopPlan table)
+  // Persist current plan to database
   try {
     await prisma.shopPlan.upsert({
       where: { shop: session.shop },
@@ -173,7 +167,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       },
     });
   } catch (dbErr) {
-    console.error("[Pricing Loader] DB plan persistence error:", dbErr);
+    console.error("[Pricing] DB plan persistence error:", dbErr);
   }
 
   if (!renewalDate) {
@@ -198,9 +192,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Action – process plan selection & subscription cancellation       */
-/* ------------------------------------------------------------------ */
+
 export async function action({ request }: ActionFunctionArgs) {
   const { billing, session } = await authenticate.admin(request);
   const formData = await request.formData();
@@ -224,10 +216,9 @@ export async function action({ request }: ActionFunctionArgs) {
           }
         }
       } catch (err) {
-        console.error("[Pricing Action] Cancellation error:", err);
+        console.error("[Pricing] Cancellation error:", err);
       }
 
-      // Persist Free plan to ShopPlan table
       try {
         await prisma.shopPlan.upsert({
           where: { shop: session.shop },
@@ -246,22 +237,20 @@ export async function action({ request }: ActionFunctionArgs) {
           },
         });
       } catch (dbErr) {
-        console.error("[Pricing Action] DB plan update error:", dbErr);
+        console.error("[Pricing] DB plan update error:", dbErr);
       }
 
       return { ok: true, plan: PLAN_FREE };
     }
 
-    // Request billing from Shopify
     try {
       return await billing.request({
-        plan,
+        plan: plan as "Premium" | "Unlimited",
         isTest: isTestMode,
       });
     } catch (err: any) {
-      console.error("[Pricing Action] billing.request caught exception:", err);
+      console.error("[Pricing] billing.request error:", err);
 
-      // Extract redirect URL if Shopify threw an App Bridge redirect Response
       let redirectUrl: string | null = null;
       if (err instanceof Response) {
         redirectUrl =
@@ -271,16 +260,11 @@ export async function action({ request }: ActionFunctionArgs) {
           err.headers.get("location");
       }
 
-      // If a redirect URL exists (e.g. Shopify Charge Approval screen), return JSON redirectUrl!
-      // This prevents React Router from catching a thrown 401 Response and crashing!
       if (redirectUrl) {
-        console.log("[Pricing Action] Returning JSON redirectUrl for client top-level redirect:", redirectUrl);
         return { ok: true, redirectUrl };
       }
 
-      // If billing.request failed without a redirect URL (e.g. app has Custom distribution or in dev test mode)
       if (isTestMode) {
-        console.log(`[Pricing Action] Test Mode Fallback: Updating ShopPlan for ${session.shop} to ${plan}`);
         try {
           const targetPlanMeta = PLANS.find((p) => p.key === plan);
           const newLimit = targetPlanMeta?.viewLimit ?? 2000;
@@ -302,12 +286,11 @@ export async function action({ request }: ActionFunctionArgs) {
           });
           return { ok: true, plan, isTestMode: true };
         } catch (dbErr) {
-          console.error("[Pricing Action] DB update error during test fallback:", dbErr);
+          console.error("[Pricing] DB update error during test fallback:", dbErr);
         }
       }
 
-      // Format clean error message for production
-      let errMsg = "Apps without a public distribution cannot use the Billing API. Change app distribution to Public in Shopify Partner Dashboard.";
+      let errMsg = "Billing API requires public distribution. Change app distribution to Public in the Shopify Partner Dashboard.";
       if (err instanceof Error) {
         errMsg = err.message;
       } else if (err?.errorData?.[0]?.message) {
@@ -328,7 +311,7 @@ export async function action({ request }: ActionFunctionArgs) {
           prorate: true,
         });
       } catch (err) {
-        console.error("[Pricing Action] Cancel renewal error:", err);
+        console.error("[Pricing] Cancel renewal error:", err);
       }
     }
 
@@ -350,7 +333,7 @@ export async function action({ request }: ActionFunctionArgs) {
         },
       });
     } catch (dbErr) {
-      console.error("[Pricing Action] DB plan update error:", dbErr);
+      console.error("[Pricing] DB plan update error:", dbErr);
     }
 
     return { ok: true, cancelled: true };
@@ -359,9 +342,7 @@ export async function action({ request }: ActionFunctionArgs) {
   return { ok: false };
 }
 
-/* ------------------------------------------------------------------ */
-/*  UI Component – Clean, simple design matching app.help.tsx          */
-/* ------------------------------------------------------------------ */
+
 export default function PricingPage() {
   const {
     currentPlan,
@@ -383,7 +364,6 @@ export default function PricingPage() {
   useEffect(() => {
     if (actionData && (actionData as any).redirectUrl) {
       const url = (actionData as any).redirectUrl;
-      console.log("[Pricing Page] Navigating top-level window to Shopify Billing Approval URL:", url);
       if (window.top) {
         window.top.location.href = url;
       } else {
@@ -538,9 +518,7 @@ export default function PricingPage() {
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  Styles – Exactly matching user's provided screenshot example      */
-/* ------------------------------------------------------------------ */
+
 const STYLES = `
   .pricing-wrapper {
     padding: 32px;

@@ -15,7 +15,6 @@ import {
   deserializeCountries,
   deserializePages,
   getCampaignStatus,
-  type CampaignStatus,
 } from "../models/announcement.shared";
 
 type Announcement = Awaited<ReturnType<typeof listAnnouncements>>[number];
@@ -252,12 +251,8 @@ export default function Index() {
 
   const statuses = announcements.map((a: Announcement) => getCampaignStatus(a));
   const activeCount = statuses.filter((s) => s === "active").length;
-
-  // Analytics stats come directly from the database (getDashboardStats).
-  // When no analytics data exists, getDashboardStats already returns 0 for all values.
   const displayStats = stats;
 
-  // Filter announcements by search query
   const filteredAnnouncements = announcements.filter(a =>
     a.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     a.message.toLowerCase().includes(searchQuery.toLowerCase())
@@ -265,14 +260,16 @@ export default function Index() {
 
   return (
     <div className="dashboard-wrapper">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         .dashboard-wrapper {
           padding: 32px;
-          margin:20px;
+          margin: 20px;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
           color: #202223;
           background-color: #f6f6f7;
           min-height: 100vh;
+          box-sizing: border-box;
         }
 
         .dashboard-header {
@@ -280,6 +277,8 @@ export default function Index() {
           justify-content: space-between;
           align-items: center;
           margin-bottom: 24px;
+          flex-wrap: wrap;
+          gap: 16px;
         }
 
         .header-title-section h1 {
@@ -354,16 +353,16 @@ export default function Index() {
           align-items: center;
           gap: 8px;
         }
-          .btn-action-icon span {
-    width: 100%;
-    max-width: 20px;
-}
+        .btn-action-icon span {
+          width: 100%;
+          max-width: 20px;
+        }
 
         .stat-icon {
           font-size: 18px;
           line-height: 1;
-          width:100%;
-          max-width:25px;
+          width: 100%;
+          max-width: 25px;
         }
 
         .usage-text {
@@ -468,7 +467,7 @@ export default function Index() {
           color: #6d7175;
         }
 
-        /* Status Pills */
+
         .status-pill {
           display: inline-flex;
           align-items: center;
@@ -605,6 +604,59 @@ export default function Index() {
           background: rgba(0, 0, 0, 0.5);
           backdrop-filter: blur(2px);
         }
+
+        @media (max-width: 768px) {
+          .dashboard-wrapper {
+            padding: 16px;
+            margin: 8px;
+          }
+          .dashboard-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+          }
+          .header-title-section h1 {
+            font-size: 22px;
+          }
+          .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+          .stat-card {
+            padding: 14px;
+          }
+          .stat-card-value {
+            font-size: 22px;
+          }
+          .announcements-table th,
+          .announcements-table td {
+            padding: 10px 8px;
+            font-size: 13px;
+          }
+          .empty-state {
+            padding: 32px 16px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .dashboard-wrapper {
+            padding: 12px;
+            margin: 4px;
+          }
+          .stats-grid {
+            grid-template-columns: 1fr;
+          }
+          .btn-primary {
+            width: 100%;
+            justify-content: center;
+          }
+          .announcements-table th:nth-child(3),
+          .announcements-table td:nth-child(3),
+          .announcements-table th:nth-child(4),
+          .announcements-table td:nth-child(4) {
+            display: none;
+          }
+        }
       `}} />
 
       <div className="dashboard-header">
@@ -633,21 +685,23 @@ export default function Index() {
           {range === "custom" && (
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: 13, color: "#6d7175" }}>From:</span>
-              <s-date-field
-                label=""
-                placeholder="Select date"
-                value={customStartDate}
-                onChange={(e: any) => setCustomStartDate(e.target.value)}
-                style={{ width: "130px" }}
-              />
+              <div style={{ width: "130px" }}>
+                <s-date-field
+                  label=""
+                  placeholder="Select date"
+                  value={customStartDate}
+                  onChange={(e: any) => setCustomStartDate(e.target.value)}
+                />
+              </div>
               <span style={{ fontSize: 13, color: "#6d7175" }}>To:</span>
-              <s-date-field
-                label=""
-                placeholder="Select date"
-                value={customEndDate}
-                onChange={(e: any) => setCustomEndDate(e.target.value)}
-                style={{ width: "130px" }}
-              />
+              <div style={{ width: "130px" }}>
+                <s-date-field
+                  label=""
+                  placeholder="Select date"
+                  value={customEndDate}
+                  onChange={(e: any) => setCustomEndDate(e.target.value)}
+                />
+              </div>
               <button
                 type="button"
                 onClick={handleApplyCustomDates}
@@ -778,8 +832,7 @@ export default function Index() {
                 <tbody>
                   {filteredAnnouncements.map((a: Announcement) => {
                     const status = getCampaignStatus(a);
-                    
-                    // Views calculations per announcement from real analytics data
+
                     const announcementViews = (a.analytics || []).reduce((sum, item) => sum + item.views, 0);
 
                     const createdDate = new Date(a.createdAt).toLocaleDateString("en-US", {
@@ -826,7 +879,7 @@ export default function Index() {
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <div className="actions-cell" style={{ justifyContent: "flex-end" }}>
-                            {/* Play/Pause Toggle button */}
+
                             <button
                               className="btn-action-icon"
                               title={a.enabled ? "Pause" : "Play"}
@@ -835,7 +888,7 @@ export default function Index() {
                               <s-icon type={a.enabled ? "pause-circle" : "play-circle"} />
                             </button>
 
-                            {/* Edit Button */}
+
                             <button
                               className="btn-action-icon"
                               title="Edit"
@@ -844,7 +897,7 @@ export default function Index() {
                               <s-icon type="edit" />
                             </button>
 
-                            {/* More Actions Trigger */}
+
                             <button
                               className="btn-action-icon"
                               title="More options"
@@ -856,7 +909,7 @@ export default function Index() {
                               <s-icon type="menu-horizontal" />
                             </button>
 
-                            {/* More Actions Dropdown Menu */}
+
                             {activeDropdown === a.id && (
                               <div className="actions-dropdown-menu">
                                 <button className="dropdown-item" onClick={() => duplicate(a.id)}>

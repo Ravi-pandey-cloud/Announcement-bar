@@ -52,122 +52,135 @@ function matchesCustomer(
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.public.appProxy(request);
-  if (!session) {
-    return Response.json({ ok: false }, { status: 401 });
-  }
-
-  const formData = await request.formData();
-  const intent = formData.get("intent");
-  if (intent === "click") {
-    const id = String(formData.get("id"));
-    if (id) {
-      await trackClick(id);
-      return Response.json({ ok: true });
+  try {
+    const { session } = await authenticate.public.appProxy(request);
+    if (!session) {
+      return Response.json({ ok: false }, { status: 401 });
     }
-  }
 
-  return Response.json({ ok: false }, { status: 400 });
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    if (intent === "click") {
+      const id = String(formData.get("id"));
+      if (id) {
+        await trackClick(id);
+        return Response.json({ ok: true });
+      }
+    }
+
+    return Response.json({ ok: false }, { status: 400 });
+  } catch (error) {
+    console.error("[AppProxy] Action error:", error);
+    return Response.json({ ok: false, error: "Invalid proxy request" }, { status: 400 });
+  }
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.public.appProxy(request);
+  try {
+    const { session } = await authenticate.public.appProxy(request);
 
-  if (!session) {
-    return Response.json({ announcements: [] });
+    if (!session) {
+      return Response.json({ announcements: [] });
+    }
+
+    const url = new URL(request.url);
+    const pageType = url.searchParams.get("page_type") || "";
+    const pagePath = url.searchParams.get("url") || "";
+    const country = url.searchParams.get("country") || "";
+    const customerTagsStr = url.searchParams.get("customer_tags") || "";
+    const customerSpend = Number(url.searchParams.get("customer_spend") || "0");
+
+    const all = await listAnnouncements(session.shop);
+    const now = new Date();
+
+    const active = all
+      .filter((a) => getCampaignStatus(a) === "active")
+      .filter((a) => {
+        // Skip bars whose countdown already expired and have no expiry message,
+        // since they'd render nothing useful.
+        if (a.countdownEnabled && a.countdownEndAt && a.countdownEndAt < now) {
+          return Boolean(a.countdownExpiredMessage);
+        }
+        return true;
+      })
+      .filter((a) => matchesPage(a.displayPages, a.customPageUrl, pageType, pagePath))
+      .filter((a) => matchesCountry(a.countries, country))
+      .filter((a) => matchesCustomer(a.customerTargetingType, a.customerTargetingTags, a.customerTargetingSpend, customerTagsStr, customerSpend))
+      .map((a) => ({
+        id: a.id,
+        message: a.message,
+        linkUrl: a.linkUrl,
+        linkText: a.linkText,
+        backgroundColor: a.backgroundColor,
+        textColor: a.textColor,
+        rotationMode: a.rotationMode,
+        bgStyle: a.bgStyle,
+        bgGradient: a.bgGradient,
+        bgAnimation: a.bgAnimation,
+        borderRadius: a.borderRadius,
+        borderSize: a.borderSize,
+        borderColor: a.borderColor,
+        fontFamily: a.fontFamily,
+        fontSize: a.fontSize,
+        fontBold: a.fontBold,
+        textAnimation: a.textAnimation,
+        customCss: a.customCss,
+        countdownEnabled: a.countdownEnabled,
+        countdownEndAt: a.countdownEndAt,
+        countdownExpiredMessage: a.countdownExpiredMessage,
+        cartGoalEnabled: a.cartGoalEnabled,
+        cartGoalAmount: a.cartGoalAmount,
+        cartGoalMessage: a.cartGoalMessage,
+        cartGoalAchievedMessage: a.cartGoalAchievedMessage,
+        subtextFontSize: a.subtextFontSize,
+        subtextColor: a.subtextColor,
+        subtextBold: a.subtextBold,
+        buttonFontSize: a.buttonFontSize,
+        buttonTextColor: a.buttonTextColor,
+        buttonBold: a.buttonBold,
+        buttonBgColor: a.buttonBgColor,
+        timerPosition: a.timerPosition,
+        timerFontSize: a.timerFontSize,
+        timerWidth: a.timerWidth,
+        timerHeight: a.timerHeight,
+        timerTextColor: a.timerTextColor,
+        timerBgColor: a.timerBgColor,
+        paddingTop: a.paddingTop,
+        paddingBottom: a.paddingBottom,
+        marginTop: a.marginTop,
+        marginBottom: a.marginBottom,
+        htmlContent: a.htmlContent,
+        
+        // Sleek features
+        barType: a.barType,
+        slideDuration: a.slideDuration,
+        showCloseButton: a.showCloseButton,
+        position: a.position,
+        sticky: a.sticky,
+        customerTargetingType: a.customerTargetingType,
+        customerTargetingTags: a.customerTargetingTags,
+        customerTargetingSpend: a.customerTargetingSpend,
+        slidesJson: a.slidesJson,
+        timezone: a.timezone,
+        sliderShowArrows: a.sliderShowArrows,
+        sliderArrowsPosition: a.sliderArrowsPosition,
+      }));
+
+    const activeIds = active.map((a) => a.id);
+    if (activeIds.length > 0) {
+      await trackViews(activeIds);
+    }
+
+    return Response.json(
+      { announcements: active },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    console.error("[AppProxy] Loader error:", error);
+    return Response.json(
+      { announcements: [] },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   }
-
-  const url = new URL(request.url);
-  const pageType = url.searchParams.get("page_type") || "";
-  const pagePath = url.searchParams.get("url") || "";
-  const country = url.searchParams.get("country") || "";
-  const customerTagsStr = url.searchParams.get("customer_tags") || "";
-  const customerSpend = Number(url.searchParams.get("customer_spend") || "0");
-
-  const all = await listAnnouncements(session.shop);
-  const now = new Date();
-
-  const active = all
-    .filter((a) => getCampaignStatus(a) === "active")
-    .filter((a) => {
-      // Skip bars whose countdown already expired and have no expiry message,
-      // since they'd render nothing useful.
-      if (a.countdownEnabled && a.countdownEndAt && a.countdownEndAt < now) {
-        return Boolean(a.countdownExpiredMessage);
-      }
-      return true;
-    })
-    .filter((a) => matchesPage(a.displayPages, a.customPageUrl, pageType, pagePath))
-    .filter((a) => matchesCountry(a.countries, country))
-    .filter((a) => matchesCustomer(a.customerTargetingType, a.customerTargetingTags, a.customerTargetingSpend, customerTagsStr, customerSpend))
-    .map((a) => ({
-      id: a.id,
-      message: a.message,
-      linkUrl: a.linkUrl,
-      linkText: a.linkText,
-      backgroundColor: a.backgroundColor,
-      textColor: a.textColor,
-      rotationMode: a.rotationMode,
-      bgStyle: a.bgStyle,
-      bgGradient: a.bgGradient,
-      bgAnimation: a.bgAnimation,
-      borderRadius: a.borderRadius,
-      borderSize: a.borderSize,
-      borderColor: a.borderColor,
-      fontFamily: a.fontFamily,
-      fontSize: a.fontSize,
-      fontBold: a.fontBold,
-      textAnimation: a.textAnimation,
-      customCss: a.customCss,
-      countdownEnabled: a.countdownEnabled,
-      countdownEndAt: a.countdownEndAt,
-      countdownExpiredMessage: a.countdownExpiredMessage,
-      cartGoalEnabled: a.cartGoalEnabled,
-      cartGoalAmount: a.cartGoalAmount,
-      cartGoalMessage: a.cartGoalMessage,
-      cartGoalAchievedMessage: a.cartGoalAchievedMessage,
-      subtextFontSize: a.subtextFontSize,
-      subtextColor: a.subtextColor,
-      subtextBold: a.subtextBold,
-      buttonFontSize: a.buttonFontSize,
-      buttonTextColor: a.buttonTextColor,
-      buttonBold: a.buttonBold,
-      buttonBgColor: a.buttonBgColor,
-      timerPosition: a.timerPosition,
-      timerFontSize: a.timerFontSize,
-      timerWidth: a.timerWidth,
-      timerHeight: a.timerHeight,
-      timerTextColor: a.timerTextColor,
-      timerBgColor: a.timerBgColor,
-      paddingTop: a.paddingTop,
-      paddingBottom: a.paddingBottom,
-      marginTop: a.marginTop,
-      marginBottom: a.marginBottom,
-      htmlContent: a.htmlContent,
-      
-      // Sleek features
-      barType: a.barType,
-      slideDuration: a.slideDuration,
-      showCloseButton: a.showCloseButton,
-      position: a.position,
-      sticky: a.sticky,
-      customerTargetingType: a.customerTargetingType,
-      customerTargetingTags: a.customerTargetingTags,
-      customerTargetingSpend: a.customerTargetingSpend,
-      slidesJson: a.slidesJson,
-      timezone: a.timezone,
-      sliderShowArrows: a.sliderShowArrows,
-      sliderArrowsPosition: a.sliderArrowsPosition,
-    }));
-
-  const activeIds = active.map((a) => a.id);
-  if (activeIds.length > 0) {
-    await trackViews(activeIds);
-  }
-
-  return Response.json(
-    { announcements: active },
-    { headers: { "Cache-Control": "no-store" } },
-  );
 }
 
