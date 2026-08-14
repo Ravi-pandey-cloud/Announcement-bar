@@ -4,18 +4,16 @@ import { PublicPageLayout } from "../components/PublicPageLayout";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Frequently Asked Questions (FAQ) | Announcement Bar Pro" },
+    { title: "Frequently Asked Questions | Announcement Bar Pro" },
     {
       name: "description",
-      content:
-        "Comprehensive FAQ covering creation, targeting, scheduling, countdown timers, cart goals, and troubleshooting for Announcement Bar Pro.",
+      content: "Find quick answers to common questions about Announcement Bar Pro.",
     },
   ];
 };
 
 interface FAQItem {
   id: string;
-  category: string;
   question: string;
   answer: React.ReactNode;
 }
@@ -23,388 +21,237 @@ interface FAQItem {
 const FAQ_ITEMS: FAQItem[] = [
   {
     id: "q1",
-    category: "General",
     question: "What is Announcement Bar Pro?",
     answer: (
       <p>
-        Announcement Bar Pro is a native Shopify app designed to boost conversions and store announcements. It allows merchants to create customizable header/footer bars, flash sale countdown timers, dynamic free-shipping cart goals, and rotating multi-message bars without writing code.
+        Announcement Bar Pro is a Shopify app that helps you create fully customizable header and footer announcement bars for your store. You can use it to promote sales, display countdown timers, show free-shipping goals, and rotate multiple messages to boost conversions.
       </p>
     ),
   },
   {
     id: "q2",
-    category: "Bar Management",
-    question: "How do I create an announcement bar?",
+    question: "How do I install the app?",
     answer: (
       <p>
-        Open the app dashboard in Shopify Admin, click <strong>Create Announcement</strong>, enter your message text, choose your visual styles (colors, fonts, gradients), set optional targeting rules or schedules, and click <strong>Save</strong>.
+        You can install the app through the Shopify App Store. Once installed, navigate to your Shopify Theme Editor, add the Announcement Bar app block to your header or theme layout, and save the changes.
       </p>
     ),
   },
   {
     id: "q3",
-    category: "Bar Management",
-    question: "How do I enable or disable a bar?",
+    question: "How do I create an announcement bar?",
     answer: (
       <p>
-        In the main dashboard table, toggle the switch next to any announcement bar. Enabled bars will render on your live storefront if targeting and schedule criteria match. Disabled bars remain saved in draft mode.
+        In the app dashboard, click <strong>Create Announcement</strong>, enter your message text, customize your colors and fonts, configure any optional targeting or scheduling rules, and click <strong>Save</strong>.
       </p>
     ),
   },
   {
     id: "q4",
-    category: "Bar Management",
-    question: "How do I edit, duplicate, delete, or reorder bars?",
+    question: "Can I customize the appearance?",
     answer: (
-      <div>
-        <p>You can manage bars directly from your app dashboard:</p>
-        <ul>
-          <li><strong>Edit:</strong> Click the edit button on any bar row to modify content and styles.</li>
-          <li><strong>Duplicate:</strong> Click the actions menu (<code>⋮</code>) and select <strong>Duplicate</strong> to create a copy as a draft.</li>
-          <li><strong>Delete:</strong> Click the actions menu (<code>⋮</code>), select <strong>Delete</strong>, and confirm in the dialog.</li>
-          <li><strong>Reorder:</strong> Adjust the bar sequence to control rotation order when multiple bars match the same page.</li>
-        </ul>
-      </div>
+      <p>
+        Yes. You can customize the background colors, text colors, borders, font styles, sizes, and layout options to match your store's brand perfectly.
+      </p>
     ),
   },
   {
     id: "q5",
-    category: "Targeting",
-    question: "How does page targeting work?",
+    question: "Can I target specific pages or customers?",
     answer: (
       <p>
-        You can choose where your bar appears: <strong>All pages</strong>, <strong>Home page</strong>, <strong>Collection pages</strong>, <strong>Product pages</strong>, <strong>Cart page</strong>, or a <strong>Custom page URL</strong>. The app automatically checks the current page type when serving announcements.
+        Yes. You can choose where your bar appears, such as all pages, the home page only, specific collections, products, or the cart page. You can also restrict bars to visitors from specific countries.
       </p>
     ),
   },
   {
     id: "q6",
-    category: "Targeting",
-    question: "How does country/location targeting work?",
+    question: "Can I schedule an announcement?",
     answer: (
       <p>
-        You can restrict bars to specific countries by selecting ISO country codes (e.g. US, CA, UK, AU). Storefront visitor location is detected automatically using Shopify localization context.
+        Yes. You can set a start and end date/time for your announcement bars to automate sales and promotions in advance.
       </p>
     ),
   },
   {
     id: "q7",
-    category: "Scheduling",
-    question: "How does campaign scheduling work?",
+    question: "Can I use multiple announcement bars?",
     answer: (
       <p>
-        Specify an optional <strong>Start Date/Time</strong> and <strong>End Date/Time</strong>. The app automatically switches bars from <code>Scheduled</code> (pending start) to <code>Active</code> (live), and finally to <code>Expired</code> when the end date passes.
+        Yes. You can create multiple bars and rotate them automatically using a carousel transition or a scrolling marquee text effect.
       </p>
     ),
   },
   {
     id: "q8",
-    category: "Countdown Timers",
-    question: "How do countdown timers work?",
+    question: "Can I add a countdown timer?",
     answer: (
       <p>
-        When you enable the <strong>Countdown Timer</strong> feature and specify a target end date, a live, second-by-second countdown is displayed on your storefront bar to build urgency for flash sales and limited-time offers.
+        Yes. You can enable a countdown timer on any bar to build urgency for limited-time offers or flash sales.
       </p>
     ),
   },
   {
     id: "q9",
-    category: "Countdown Timers",
-    question: "What happens when a countdown ends?",
+    question: "How does the free-shipping goal work?",
     answer: (
       <p>
-        When the timer reaches zero, if you configured a <strong>Replacement Message</strong> (e.g., "Flash sale has ended!"), the bar instantly swaps to that message. If no replacement message is set, the bar automatically hides from the storefront.
+        You can set a target order amount (for example, $50) for free shipping. The app automatically tracks the customer's cart value and updates the announcement bar dynamically to show how much more they need to spend to qualify.
       </p>
     ),
   },
   {
     id: "q10",
-    category: "Rotation & Multiple Bars",
-    question: "How do multiple announcement bars rotate?",
+    question: "Can I preview my announcement?",
     answer: (
-      <div>
-        <p>If multiple active bars match a storefront page, you can choose a <strong>Rotation Mode</strong>:</p>
-        <ul>
-          <li><strong>Static:</strong> Shows the top-priority announcement bar.</li>
-          <li><strong>Carousel:</strong> Rotates between bars with slide or fade transitions at configurable durations (e.g. every 5 seconds).</li>
-          <li><strong>Scrolling Text:</strong> Renders messages in a continuous marquee ticker animation.</li>
-        </ul>
-      </div>
+      <p>
+        Yes. The app dashboard features a live preview editor that shows you exactly how your announcement bar will look before publishing it to your store.
+      </p>
     ),
   },
   {
     id: "q11",
-    category: "Cart Goal",
-    question: "What is the cart goal / free-shipping progress bar?",
+    question: "How do I disable an announcement?",
     answer: (
       <p>
-        The Cart Goal bar tracks a spending threshold (e.g. $50 for Free Shipping). It integrates with Shopify's <code>/cart.js</code> AJAX API to dynamically recalculate the remaining balance (using the <code>{"{amount}"}</code> template variable) and updates to your custom "Goal Achieved" message when reached.
+        You can disable any active announcement bar by toggling the status switch off in the app dashboard.
       </p>
     ),
   },
   {
     id: "q12",
-    category: "Styling & CTA",
-    question: "How do I customize colors, fonts, and content?",
+    question: "What happens if I uninstall the app?",
     answer: (
       <p>
-        The app offers full design customization: background color, linear gradients, text color, border width, border color, corner radius, Google Fonts selection, font sizes, text animation effects, and custom CSS overrides.
+        If you uninstall the app, all active bars will stop showing on your storefront, and your subscription will be canceled. Your settings are saved for 48 hours in case you reinstall, after which they are permanently deleted.
       </p>
     ),
   },
   {
     id: "q13",
-    category: "Styling & CTA",
-    question: "How do I add a CTA button?",
+    question: "How can I get support?",
     answer: (
       <p>
-        Enable the <strong>Call-To-Action (CTA) Button</strong> setting in the bar editor. Specify the button label (e.g., "Shop Sale"), destination URL, button background color, text color, and font size.
-      </p>
-    ),
-  },
-  {
-    id: "q14",
-    category: "Styling & CTA",
-    question: "How does the dismiss ('×') button work?",
-    answer: (
-      <p>
-        When the <strong>Close Button</strong> option is enabled, visitors can click the '×' icon to dismiss the bar. A browser session storage flag remembers their preference so the bar remains closed for the rest of their visit.
-      </p>
-    ),
-  },
-  {
-    id: "q15",
-    category: "Positioning",
-    question: "How do I position the announcement bar?",
-    answer: (
-      <p>
-        Choose between <strong>Top of page</strong> or <strong>Bottom of page</strong> positioning. You can also toggle <strong>Sticky</strong> behavior so the bar stays fixed to the screen during scrolling.
-      </p>
-    ),
-  },
-  {
-    id: "q16",
-    category: "Theme Extension",
-    question: "How do I add the Theme App Extension to my theme?",
-    answer: (
-      <p>
-        Go to <strong>Shopify Admin → Online Store → Themes → Customize</strong>. Click <strong>Add section</strong> (or Add block), select <strong>Apps → Announcement bar</strong>, and click <strong>Save</strong> in the top-right corner of the Theme Editor.
-      </p>
-    ),
-  },
-  {
-    id: "q17",
-    category: "Troubleshooting",
-    question: "Why is my announcement bar not showing on my storefront?",
-    answer: (
-      <div>
-        <p>Check the following 4 common points:</p>
-        <ol>
-          <li>Is the Announcement Bar app block added to your active theme in Shopify Theme Customizer?</li>
-          <li>Is the bar switch set to <strong>Enabled</strong> in the app dashboard?</li>
-          <li>Do your page, country, or schedule targeting rules match your current test page?</li>
-          <li>Is your App Proxy functioning? (Open DevTools Network tab and verify requests to <code>/apps/announcement-bar/bars</code> return 200 OK).</li>
-        </ol>
-      </div>
-    ),
-  },
-  {
-    id: "q18",
-    category: "Data & Uninstallation",
-    question: "How does app uninstallation and data deletion work?",
-    answer: (
-      <p>
-        Uninstalling the app cancels active subscriptions immediately. Store configurations are retained for up to 48 hours to handle accidental reinstalls, after which Shopify's <code>shop/redact</code> privacy webhook permanently wipes all shop data from our database.
+        You can contact our support team directly through the Shopify Partner Dashboard App Support channel or email us at <strong>support@announcementbarpro.com</strong>. We aim to reply to all inquiries within 24 business hours.
       </p>
     ),
   },
 ];
 
 export default function FAQPublic() {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [openId, setOpenId] = useState<string | null>(null);
 
-  const categories = ["All", "General", "Bar Management", "Targeting", "Scheduling", "Countdown Timers", "Rotation & Multiple Bars", "Cart Goal", "Styling & CTA", "Positioning", "Theme Extension", "Troubleshooting", "Data & Uninstallation"];
-
-  const filteredItems = FAQ_ITEMS.filter((item) => {
-    const matchesCat = selectedCategory === "All" || item.category === selectedCategory;
-    const matchesSearch =
-      item.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.category.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  const toggleItem = (id: string) => {
+    setOpenId(openId === id ? null : id);
+  };
 
   return (
     <PublicPageLayout
       title="Frequently Asked Questions"
-      subtitle="Find fast answers to common questions about setting up, targeting, styling, and managing your announcement bars."
-      badge="Merchant Knowledge Base"
+      subtitle="Find quick answers to common questions about Announcement Bar Pro."
       activeTab="faq"
     >
       <style
         dangerouslySetInnerHTML={{
           __html: `
-        .faq-filter-bar {
+        .faq-container {
+          max-width: 800px;
+          margin: 0 auto;
+        }
+
+        .faq-accordion-item {
           background: #ffffff;
           border: 1px solid #e3e3e3;
-          border-radius: 12px;
-          padding: 20px;
-          margin-bottom: 28px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-        }
-
-        .search-box {
-          margin-bottom: 16px;
-        }
-
-        .search-input {
-          width: 100%;
-          padding: 12px 16px;
-          border: 1px solid #c9cccf;
           border-radius: 8px;
-          font-size: 15px;
-          box-sizing: border-box;
+          margin-bottom: 12px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+          transition: border-color 0.15s ease;
+        }
+
+        .faq-accordion-item:hover {
+          border-color: #c9cccf;
+        }
+
+        .faq-accordion-trigger {
+          width: 100%;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 18px 24px;
+          background: none;
+          border: none;
+          text-align: left;
+          font-size: 16px;
+          font-weight: 600;
+          color: #1a1a1a;
+          cursor: pointer;
           outline: none;
         }
 
-        .search-input:focus {
-          border-color: #1a1a1a;
+        .faq-accordion-trigger:focus-visible {
+          outline: 2px solid #1a1a1a;
         }
 
-        .category-pills {
-          display: flex;
-          gap: 8px;
-          flex-wrap: wrap;
-        }
-
-        .cat-pill {
-          background: #f1f2f3;
-          border: 1px solid #e3e3e3;
-          padding: 6px 14px;
-          border-radius: 16px;
-          font-size: 13px;
-          font-weight: 500;
+        .faq-accordion-icon {
+          font-size: 20px;
+          font-weight: 400;
           color: #6d7175;
-          cursor: pointer;
-          transition: all 0.15s ease;
+          transition: transform 0.2s ease;
+          user-select: none;
         }
 
-        .cat-pill:hover {
-          background: #e4e5e7;
-          color: #202223;
+        .faq-accordion-item.open .faq-accordion-icon {
+          transform: rotate(45deg);
         }
 
-        .cat-pill.active {
-          background: #1a1a1a;
-          color: #ffffff;
-          border-color: #1a1a1a;
-        }
-
-        .faq-grid {
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-
-        .faq-item-card {
-          background: #ffffff;
-          border: 1px solid #e3e3e3;
-          border-radius: 12px;
-          padding: 24px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-        }
-
-        .faq-item-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 12px;
-          margin-bottom: 12px;
-        }
-
-        .faq-question {
-          font-size: 17px;
-          font-weight: 700;
-          color: #1a1a1a;
-          margin: 0;
-        }
-
-        .faq-cat-badge {
-          background: #f1f2f3;
-          color: #6d7175;
-          font-size: 12px;
-          font-weight: 600;
-          padding: 3px 10px;
-          border-radius: 10px;
-          white-space: nowrap;
-        }
-
-        .faq-answer {
+        .faq-accordion-content {
+          padding: 0 24px 18px 24px;
           font-size: 14px;
           line-height: 1.6;
-          color: #303030;
-          margin: 0;
+          color: #4a4d51;
+          border-top: 1px solid transparent;
         }
 
-        .faq-answer ul, .faq-answer ol {
-          padding-left: 20px;
-          margin-top: 8px;
-          margin-bottom: 8px;
+        .faq-accordion-item.open .faq-accordion-content {
+          border-top-color: #f1f2f3;
         }
 
-        .empty-results {
-          background: #ffffff;
-          border: 1px dashed #c9cccf;
-          border-radius: 12px;
-          padding: 40px;
-          text-align: center;
-          color: #6d7175;
+        .faq-accordion-content p {
+          margin: 0 0 12px 0;
+        }
+
+        .faq-accordion-content p:last-child {
+          margin-bottom: 0;
         }
       `,
         }}
       />
 
-      <div className="faq-filter-bar">
-        <div className="search-box">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search questions by topic (e.g. countdown, targeting, theme extension)..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="category-pills">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              className={`cat-pill ${selectedCategory === cat ? "active" : ""}`}
-              onClick={() => setSelectedCategory(cat)}
+      <div className="faq-container">
+        {FAQ_ITEMS.map((item) => {
+          const isOpen = openId === item.id;
+          return (
+            <div
+              key={item.id}
+              className={`faq-accordion-item ${isOpen ? "open" : ""}`}
             >
-              {cat}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="faq-grid">
-        {filteredItems.length === 0 ? (
-          <div className="empty-results">
-            <h3>No questions found matching "{searchTerm}"</h3>
-            <p>Try searching for a different keyword or check the full Documentation guide.</p>
-          </div>
-        ) : (
-          filteredItems.map((item) => (
-            <div className="faq-item-card" key={item.id}>
-              <div className="faq-item-header">
-                <h3 className="faq-question">{item.question}</h3>
-                <span className="faq-cat-badge">{item.category}</span>
-              </div>
-              <div className="faq-answer">{item.answer}</div>
+              <button
+                className="faq-accordion-trigger"
+                onClick={() => toggleItem(item.id)}
+                aria-expanded={isOpen}
+              >
+                <span>{item.question}</span>
+                <span className="faq-accordion-icon">+</span>
+              </button>
+              {isOpen && (
+                <div className="faq-accordion-content">
+                  {item.answer}
+                </div>
+              )}
             </div>
-          ))
-        )}
+          );
+        })}
       </div>
     </PublicPageLayout>
   );

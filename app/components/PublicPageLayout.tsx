@@ -240,7 +240,6 @@ export function PublicPageLayout({
         <div className="hero-inner">
           <div className="hero-top-row">
             <h1 className="hero-title">{title}</h1>
-            {badge && <span className="hero-badge">{badge}</span>}
           </div>
           <p className="hero-subtitle">{subtitle}</p>
         </div>
@@ -253,7 +252,7 @@ export function PublicPageLayout({
       <footer className="public-footer">
         <div className="footer-inner">
           <div>
-            © {new Date().getFullYear()} Announcement Bar Pro. Shopify App Store Compliance & Merchant Center.
+            © 2026 Announcement Bar Pro. All rights reserved.
           </div>
           <div className="footer-links">
             <a href="/documentation">Documentation</a>

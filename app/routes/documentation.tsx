@@ -4,11 +4,10 @@ import { PublicPageLayout } from "../components/PublicPageLayout";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Merchant Setup & Documentation Guide | Announcement Bar Pro" },
+    { title: "Documentation | Announcement Bar Pro" },
     {
       name: "description",
-      content:
-        "Official merchant user manual for Announcement Bar Pro: Theme extension setup, page & country targeting, scheduling, countdown timers, cart goals, and troubleshooting.",
+      content: "Learn how to install and use Announcement Bar Pro on your Shopify store.",
     },
   ];
 };
@@ -16,9 +15,8 @@ export const meta: MetaFunction = () => {
 export default function DocumentationPublic() {
   return (
     <PublicPageLayout
-      title="Merchant User Manual & Documentation"
-      subtitle="Complete step-by-step guide to installing, configuring, styling, targeting, and troubleshooting Announcement Bar Pro on your Shopify store."
-      badge="Official User Guide"
+      title="Documentation"
+      subtitle="Learn how to install and use Announcement Bar Pro."
       activeTab="documentation"
     >
       <style
@@ -130,8 +128,9 @@ export default function DocumentationPublic() {
         }
 
         .code-snippet {
-          background: #1a1a1a;
-          color: #34d399;
+          background: #f8f9fa;
+          color: #1a1a1a;
+          border: 1px solid #e3e3e3;
           padding: 12px 16px;
           border-radius: 8px;
           font-family: monospace;
@@ -155,184 +154,149 @@ export default function DocumentationPublic() {
       <div className="doc-layout">
         {/* Sidebar Table of Contents */}
         <aside className="doc-sidebar">
-          <div className="doc-sidebar-title">Documentation Index</div>
+          <div className="doc-sidebar-title">Sections</div>
           <nav className="doc-sidebar-nav">
             <a href="#getting-started" className="doc-sidebar-link">1. Getting Started</a>
-            <a href="#theme-extension" className="doc-sidebar-link">2. Theme Extension Installation</a>
-            <a href="#creating-bars" className="doc-sidebar-link">3. Creating Announcement Bars</a>
-            <a href="#targeting" className="doc-sidebar-link">4. Page & Country Targeting</a>
-            <a href="#scheduling" className="doc-sidebar-link">5. Campaign Scheduling</a>
-            <a href="#countdown-timer" className="doc-sidebar-link">6. Countdown Timers</a>
-            <a href="#multiple-bars" className="doc-sidebar-link">7. Multiple Bar Rotation</a>
-            <a href="#cart-goal" className="doc-sidebar-link">8. Free-Shipping Cart Goal</a>
-            <a href="#styling" className="doc-sidebar-link">9. Styling & Customization</a>
-            <a href="#troubleshooting" className="doc-sidebar-link">10. Troubleshooting Checklist</a>
+            <a href="#installing-app" className="doc-sidebar-link">2. Installing the App</a>
+            <a href="#creating-bar" className="doc-sidebar-link">3. Creating a Bar</a>
+            <a href="#customizing-design" className="doc-sidebar-link">4. Customizing the Design</a>
+            <a href="#targeting-rules" className="doc-sidebar-link">5. Setting Targeting Rules</a>
+            <a href="#scheduling" className="doc-sidebar-link">6. Scheduling</a>
+            <a href="#countdown-timer" className="doc-sidebar-link">7. Countdown Timer</a>
+            <a href="#multiple-bars" className="doc-sidebar-link">8. Multiple Bars</a>
+            <a href="#free-shipping" className="doc-sidebar-link">9. Free-Shipping Goal</a>
+            <a href="#preview-publish" className="doc-sidebar-link">10. Preview & Publish</a>
+            <a href="#troubleshooting" className="doc-sidebar-link">11. Troubleshooting</a>
           </nav>
         </aside>
 
         {/* Main Content */}
         <div className="doc-content">
-          {/* Section 1 */}
           <section id="getting-started" className="doc-section">
             <h2>1. Getting Started</h2>
             <p>
-              Welcome to <strong>Announcement Bar Pro</strong>! This app enables Shopify merchants to display high-converting promotional banners, countdown timers, multi-bar carousels, and free-shipping progress bars directly on your storefront.
-            </p>
-            <h3>Core App Workflow</h3>
-            <ol>
-              <li>Install the Theme App Extension in your active Shopify Theme Editor.</li>
-              <li>Create and customize your announcement bar in the app dashboard.</li>
-              <li>Configure targeting, scheduling, and rotation preferences.</li>
-              <li>Toggle the bar to <strong>Enabled</strong> and publish your theme changes.</li>
-            </ol>
-          </section>
-
-          {/* Section 2 */}
-          <section id="theme-extension" className="doc-section">
-            <h2>2. Installing the Theme App Extension</h2>
-            <p>
-              Announcement Bar Pro uses Shopify App Blocks for zero-code theme integration, guaranteeing compatibility with all Online Store 2.0 themes without modifying theme code files.
-            </p>
-            <div className="step-box">
-              <p>📍 Theme Customizer Path:</p>
-              <code>Online Store → Themes → Customize → Add section → Apps → Announcement bar</code>
-            </div>
-            <h3>Installation Steps:</h3>
-            <ol>
-              <li>From your Shopify Admin, navigate to <strong>Online Store → Themes</strong>.</li>
-              <li>Click <strong>Customize</strong> next to your live or draft theme.</li>
-              <li>In the left sidebar, click <strong>Add section</strong> (or Add block inside Header).</li>
-              <li>Select the <strong>Apps</strong> tab and click <strong>Announcement bar</strong>.</li>
-              <li>Click <strong>Save</strong> in the top-right corner of the Theme Editor.</li>
-            </ol>
-            <p>
-              <em>Note:</em> The App Block must be added to each theme template (e.g. Header, Home, Products) where you want announcement bars to appear.
+              Announcement Bar Pro helps you showcase active promotions, countdown timers, and free-shipping targets directly on your storefront. The app uses Shopify's native App Blocks, so you do not need to edit any code.
             </p>
           </section>
 
-          {/* Section 3 */}
-          <section id="creating-bars" className="doc-section">
-            <h2>3. Creating & Managing Announcement Bars</h2>
-            <p>To create your first bar:</p>
+          <section id="installing-app" className="doc-section">
+            <h2>2. Installing the App</h2>
+            <p>
+              To show announcement bars on your store, you need to add the app block to your theme:
+            </p>
             <ol>
-              <li>In the app dashboard, click <strong>Create Announcement</strong>.</li>
-              <li>Enter an internal <strong>Bar Name</strong> (e.g., "Summer Flash Sale Banner").</li>
-              <li>Enter your customer-facing <strong>Message Text</strong>.</li>
-              <li>Use the live preview panel on the right side of the screen to inspect your design.</li>
-              <li>Click <strong>Save Announcement</strong>.</li>
+              <li>In your Shopify Admin, go to <strong>Online Store</strong> &gt; <strong>Themes</strong>.</li>
+              <li>Click <strong>Customize</strong> next to your active theme.</li>
+              <li>In the left sidebar, click <strong>Add section</strong> or <strong>Add block</strong> (usually under the Header).</li>
+              <li>Select <strong>Announcement Bar Pro</strong> from the App category.</li>
+              <li>Click <strong>Save</strong> in the top-right corner.</li>
             </ol>
-            <h3>Dashboard Management Controls:</h3>
+          </section>
+
+          <section id="creating-bar" className="doc-section">
+            <h2>3. Creating an Announcement Bar</h2>
+            <p>
+              Set up your first banner from the app dashboard:
+            </p>
+            <ol>
+              <li>Click <strong>Create Announcement</strong>.</li>
+              <li>Enter an internal name for your bar to find it easily later.</li>
+              <li>Write your announcement message in the message editor.</li>
+              <li>Configure targeting, styling, and timing settings as needed.</li>
+              <li>Click <strong>Save</strong>.</li>
+            </ol>
+          </section>
+
+          <section id="customizing-design" className="doc-section">
+            <h2>4. Customizing the Design</h2>
+            <p>
+              You can style your announcement bar to match your brand:
+            </p>
             <ul>
-              <li><strong>Enable / Disable Switch:</strong> Toggle a bar on or off at any time.</li>
-              <li><strong>Duplicate:</strong> Create a copy of an existing bar as a draft.</li>
-              <li><strong>Delete:</strong> Remove an announcement bar permanently.</li>
-              <li><strong>Reorder Sequence:</strong> Adjust the bar sequence to establish rotation priority.</li>
+              <li><strong>Colors:</strong> Choose a solid background color or create custom linear gradients.</li>
+              <li><strong>Typography:</strong> Select a Google Font and adjust font size to make your message stand out.</li>
+              <li><strong>Dismiss Button:</strong> Add an '×' close button so customers can hide the bar. The app will remember this preference for the rest of their visit.</li>
+              <li><strong>Call-to-Action:</strong> Add a button with a custom label and destination URL to guide users to your sales.</li>
             </ul>
           </section>
 
-          {/* Section 4 */}
-          <section id="targeting" className="doc-section">
-            <h2>4. Page & Location Targeting</h2>
-            <p>Control exactly where and to whom your announcement bar is shown:</p>
-            <h3>Page Targeting:</h3>
-            <ul>
-              <li><strong>All Pages:</strong> Renders across the entire storefront.</li>
-              <li><strong>Home Page:</strong> Displays exclusively on <code>/</code>.</li>
-              <li><strong>Collection Pages:</strong> Displays on collection listing pages (<code>/collections/*</code>).</li>
-              <li><strong>Product Pages:</strong> Displays on product detail pages (<code>/products/*</code>).</li>
-              <li><strong>Cart Page:</strong> Displays on the cart page (<code>/cart</code>).</li>
-              <li><strong>Custom URL:</strong> Displays on a specific page path matching your criteria.</li>
-            </ul>
-            <h3>Country & Geolocation Targeting:</h3>
+          <section id="targeting-rules" className="doc-section">
+            <h2>5. Setting Targeting Rules</h2>
             <p>
-              Select specific ISO country codes (e.g., US, CA, UK, DE). The app evaluates the shopper's country location context via Shopify storefront localization to serve targeted currency or shipping promotions.
+              Choose who sees your announcement bar:
             </p>
+            <ul>
+              <li><strong>Pages:</strong> Show the bar on all pages, the home page only, specific collections, products, the cart page, or a custom URL path.</li>
+              <li><strong>Location:</strong> Restrict the bar to specific countries using ISO country codes (e.g. US, CA, GB) to show relevant shipping rates or promotions.</li>
+            </ul>
           </section>
 
-          {/* Section 5 */}
           <section id="scheduling" className="doc-section">
-            <h2>5. Campaign Scheduling</h2>
-            <p>Schedule promotions in advance for seasonal sales or product launches:</p>
+            <h2>6. Scheduling an Announcement</h2>
+            <p>
+              Plan your campaigns in advance by choosing start and end dates:
+            </p>
             <ul>
-              <li><strong>Start Date & Time:</strong> The bar will remain hidden until this timestamp.</li>
-              <li><strong>End Date & Time:</strong> The bar will automatically stop displaying after this timestamp.</li>
-            </ul>
-            <p>The dashboard displays clear status badges:</p>
-            <ul>
-              <li><span style={{ color: '#1a73e8', fontWeight: 600 }}>Scheduled:</span> Pending start time.</li>
-              <li><span style={{ color: '#137333', fontWeight: 600 }}>Active:</span> Currently running live.</li>
-              <li><span style={{ color: '#c5221f', fontWeight: 600 }}>Expired:</span> Campaign finished.</li>
+              <li><strong>Start Date:</strong> The bar will automatically appear at this time.</li>
+              <li><strong>End Date:</strong> The bar will automatically hide when the promotional period ends.</li>
             </ul>
           </section>
 
-          {/* Section 6 */}
           <section id="countdown-timer" className="doc-section">
-            <h2>6. Countdown Timers</h2>
+            <h2>7. Adding a Countdown Timer</h2>
             <p>
-              Drive conversion urgency by enabling a real-time countdown timer bound to a target expiration timestamp.
+              Build urgency for limited-time offers or flash sales:
             </p>
-            <h3>Timer Options:</h3>
-            <ul>
-              <li><strong>Live Countdown:</strong> Renders days, hours, minutes, and seconds.</li>
-              <li><strong>Replacement Message:</strong> Specify text (e.g. "Flash Sale Expired!") to replace the timer when zero is reached.</li>
-              <li><strong>Auto-Hide:</strong> If no replacement message is set, the bar automatically disappears when the countdown finishes.</li>
-            </ul>
-          </section>
-
-          {/* Section 7 */}
-          <section id="multiple-bars" className="doc-section">
-            <h2>7. Multiple Bar Rotation</h2>
-            <p>When multiple active bars match the same page, choose your preferred display mode:</p>
-            <ul>
-              <li><strong>Static:</strong> Shows the top-priority bar based on your dashboard sequence.</li>
-              <li><strong>Carousel:</strong> Automatically rotates through active bars with smooth slide/fade transitions at your set duration (e.g., 5 seconds). Includes optional navigation arrows.</li>
-              <li><strong>Scrolling Text (Marquee):</strong> Displays continuous ticker text animation scrolling across the header.</li>
-            </ul>
-          </section>
-
-          {/* Section 8 */}
-          <section id="cart-goal" className="doc-section">
-            <h2>8. Free-Shipping Cart Goal Progress Bar</h2>
-            <p>
-              Encourage higher average order value (AOV) by displaying a dynamic spending progress bar.
-            </p>
-            <div className="code-snippet">
-              Free shipping on orders over $50! Add {"{amount}"} more to qualify.
-            </div>
-            <h3>How It Works:</h3>
             <ol>
-              <li>Set your target goal threshold amount (e.g. <code>50</code>).</li>
-              <li>Use the <code>{"{amount}"}</code> template variable in your progress message.</li>
-              <li>The storefront App Block listens to Shopify <code>/cart.js</code> AJAX updates and recalculates the remaining balance in real time.</li>
-              <li>When the cart total reaches $50, the bar automatically transitions to your custom <strong>Goal Achieved Message</strong> (e.g., "🎉 You unlocked Free Shipping!").</li>
+              <li>Enable the <strong>Countdown Timer</strong> setting.</li>
+              <li>Select your target end date and time.</li>
+              <li>Add a replacement message (e.g., "Flash sale has ended!") to display after the countdown finishes. If left blank, the bar will hide automatically.</li>
             </ol>
           </section>
 
-          {/* Section 9 */}
-          <section id="styling" className="doc-section">
-            <h2>9. Styling & Customization</h2>
-            <p>Tailor your announcement bars to match your store's brand identity:</p>
+          <section id="multiple-bars" className="doc-section">
+            <h2>8. Using Multiple Announcement Bars</h2>
+            <p>
+              If you have more than one active announcement bar, you can configure how they are displayed:
+            </p>
             <ul>
-              <li><strong>Colors & Gradients:</strong> Solid background color or multi-color linear gradient with animated background options.</li>
-              <li><strong>Typography:</strong> Font family, font size, subtext font size, and bold formatting.</li>
-              <li><strong>CTA Button:</strong> Custom button text, link destination URL, button background, and hover states.</li>
-              <li><strong>Position & Sticky Behavior:</strong> Position at Top or Bottom of page, with optional fixed Sticky header scroll behavior.</li>
-              <li><strong>Dismiss Button:</strong> Close ('×') button with session memory to prevent re-showing during the visitor's browsing session.</li>
+              <li><strong>Static:</strong> Displays only your highest-priority announcement bar.</li>
+              <li><strong>Carousel:</strong> Automatically rotates through active bars with smooth slide or fade transitions.</li>
+              <li><strong>Scrolling Text:</strong> Renders your announcements in a continuous moving ticker effect.</li>
             </ul>
           </section>
 
-          {/* Section 10 */}
+          <section id="free-shipping" className="doc-section">
+            <h2>9. Free-Shipping Goal</h2>
+            <p>
+              Encourage customers to add more items to their cart to unlock free shipping:
+            </p>
+            <ol>
+              <li>Set your target goal amount (e.g., 50 for $50).</li>
+              <li>Use the <code>{"{amount}"}</code> placeholder in your announcement text.</li>
+              <li>The app will automatically calculate and display the remaining balance dynamically.</li>
+              <li>Set a custom <strong>Goal Achieved</strong> message (e.g., "Congratulations! You've unlocked free shipping.") that displays when the threshold is met.</li>
+            </ol>
+          </section>
+
+          <section id="preview-publish" className="doc-section">
+            <h2>10. Previewing and Publishing</h2>
+            <p>
+              You can preview how your announcement bar looks in the app editor's live preview pane as you customize it. Once you are satisfied with the design and settings, make sure the bar is set to <strong>Enabled</strong> on your dashboard.
+            </p>
+          </section>
+
           <section id="troubleshooting" className="doc-section">
-            <h2>10. Troubleshooting Checklist</h2>
-            <p>If your announcement bar is not rendering on your storefront, follow this 5-step checklist:</p>
+            <h2>11. Troubleshooting</h2>
+            <p>
+              If your announcement bar is not showing on your store, verify the following:
+            </p>
             <div className="step-box">
-              <p>🔍 Troubleshooting Steps:</p>
-              <ol>
-                <li><strong>Verify Theme Customizer:</strong> Ensure the Announcement Bar App Block is added in your active Shopify Theme Editor and saved.</li>
-                <li><strong>Check Enabled Toggle:</strong> Confirm the bar status switch is set to <strong>Enabled</strong> in the app dashboard.</li>
-                <li><strong>Check Schedule Dates:</strong> Verify current time falls between your Start Date and End Date.</li>
-                <li><strong>Check Page & Country Rules:</strong> Ensure your test URL and IP location match the bar's targeting rules.</li>
-                <li><strong>Check Browser Network Tab:</strong> Open DevTools → Network tab, reload your store page, and filter for <code>/apps/announcement-bar/bars</code>. Confirm it returns HTTP 200 OK.</li>
+              <ol style={{ margin: 0 }}>
+                <li>Confirm the Announcement Bar Pro app block is added to your active theme and the changes are saved.</li>
+                <li>Make sure the bar is set to <strong>Enabled</strong> in the app dashboard.</li>
+                <li>Verify that the current time falls within your scheduled start and end dates.</li>
+                <li>Check that you are viewing a page and browsing from a location that matches your targeting rules.</li>
               </ol>
             </div>
           </section>

@@ -7,8 +7,7 @@ export const meta: MetaFunction = () => {
     { title: "Privacy Policy | Announcement Bar Pro" },
     {
       name: "description",
-      content:
-        "Official Merchant & Storefront Privacy Policy for Announcement Bar Pro Shopify App.",
+      content: "Learn how Announcement Bar Pro collects, uses, and protects information.",
     },
   ];
 };
@@ -17,8 +16,7 @@ export default function PrivacyPolicyPublic() {
   return (
     <PublicPageLayout
       title="Privacy Policy"
-      subtitle="Comprehensive statement on how Announcement Bar Pro processes store metadata, storefront App Proxy requests, and handles merchant & customer privacy."
-      badge="Merchant & Storefront Policy"
+      subtitle="Learn how Announcement Bar Pro collects, uses, and protects information."
       activeTab="privacy-policy"
     >
       <style
@@ -58,22 +56,9 @@ export default function PrivacyPolicyPublic() {
           margin-bottom: 8px;
         }
 
-        .highlight-box {
-          background-color: #f8f9fa;
-          border-left: 4px solid #1a1a1a;
-          padding: 16px 20px;
-          border-radius: 0 8px 8px 0;
-          margin: 16px 0;
-        }
-
-        .highlight-box p {
-          margin: 0;
-          font-weight: 500;
-        }
-
         .contact-card {
-          background-color: #f1f8f5;
-          border: 1px solid #c2e7d9;
+          background-color: #f8f9fa;
+          border: 1px solid #e3e3e3;
           border-radius: 8px;
           padding: 20px;
           margin-top: 16px;
@@ -87,111 +72,90 @@ export default function PrivacyPolicyPublic() {
       />
 
       <div className="policy-card">
-        <h2>1. Overview & Scope</h2>
+        <h2>1. Information We Collect</h2>
         <p>
-          This Privacy Policy describes how <strong>Announcement Bar Pro</strong> ("the Application") collects, uses, processes, and protects information when installed on a Shopify store ("Merchant Store") or when rendering promotional announcement bars to storefront visitors ("Shoppers").
+          Announcement Bar Pro collects configuration settings you create for your announcement bars (such as banner text, styling choices, active schedules, and targeting rules) and basic store details necessary to authenticate the app and serve configurations.
         </p>
-        <div className="highlight-box">
-          <p>
-            <strong>Core Privacy Commitment:</strong> Announcement Bar Pro does NOT store, sell, or collect Personally Identifiable Information (PII) from store shoppers. All customer targeting rules (such as tags and order spend) are evaluated dynamically in-memory via Shopify App Proxy and are never saved to our servers.
-          </p>
-        </div>
       </div>
 
       <div className="policy-card">
-        <h2>2. Information Collected</h2>
-        <p>To provide core announcement bar functionality, the Application collects and stores the following merchant and store data:</p>
-        <ul>
-          <li>
-            <strong>Shopify Merchant Store Metadata:</strong> Store permanent domain (e.g. <code>myshopify.com</code>), primary shop locale, shop timezone, and OAuth access tokens required to authenticate API requests with Shopify Admin.
-          </li>
-          <li>
-            <strong>Announcement Bar Configurations:</strong> Announcement titles, promotional message text, color themes (backgrounds, gradients, borders), font selections, rotation rules, page display rules, scheduling dates, country targeting codes, and cart threshold goals.
-          </li>
-          <li>
-            <strong>Aggregate Analytics:</strong> Anonymous, aggregated view counts and click counts recorded per announcement bar to populate performance statistics in the merchant dashboard.
-          </li>
-        </ul>
-      </div>
-
-      <div className="policy-card">
-        <h2>3. Storefront App Proxy & Customer Data Handling</h2>
-        <p>When shoppers visit a merchant storefront containing an Announcement Bar Pro block:</p>
-        <ul>
-          <li>
-            <strong>App Proxy Requests:</strong> The storefront script issues an authenticated request to <code>/apps/announcement-bar/bars</code> to fetch matching active announcements.
-          </li>
-          <li>
-            <strong>Contextual Parameters:</strong> Request parameters such as page type (e.g., <code>home</code>, <code>product</code>), current page path, visitor ISO country code, customer tags, and total cart spend are transmitted over HTTPS to match targeting criteria.
-          </li>
-          <li>
-            <strong>In-Memory Evaluation:</strong> Customer tags and order spend values are processed strictly in server memory during the request execution lifecycle and are immediately discarded. No customer IDs, names, email addresses, or purchasing histories are logged or stored.
-          </li>
-        </ul>
-      </div>
-
-      <div className="policy-card">
-        <h2>4. Data Storage & Security</h2>
+        <h2>2. How We Use Information</h2>
         <p>
-          All application state and announcement configurations are persisted in a secure relational database (MySQL) via Prisma ORM with strict access controls.
+          We use this information to run the application, verify store authorization, apply your customized styling settings, and display the correct announcement bars to your store visitors.
         </p>
-        <ul>
-          <li>
-            <strong>Admin API Security:</strong> Communication between the merchant Shopify Admin and our servers is authenticated using Shopify OAuth and App Bridge session tokens.
-          </li>
-          <li>
-            <strong>App Proxy Security:</strong> All storefront App Proxy requests are verified using Shopify HMAC signature validation to prevent tampering and forged requests.
-          </li>
-          <li>
-            <strong>HTTPS Encryption:</strong> All data in transit is encrypted using standard TLS/HTTPS protocols.
-          </li>
-        </ul>
       </div>
 
       <div className="policy-card">
-        <h2>5. Data Retention & Uninstallation</h2>
+        <h2>3. Shopify Store Data</h2>
         <p>
-          When a merchant uninstalls Announcement Bar Pro from their Shopify store:
+          When you install the app, we access store metadata provided by Shopify, including the store's primary domain name, language settings, timezone, and the access tokens required to communicate securely with your Shopify Admin.
         </p>
-        <ul>
-          <li>
-            <strong>Immediate Access Revocation:</strong> Active API access tokens are immediately revoked by Shopify.
-          </li>
-          <li>
-            <strong>Retention Window:</strong> Merchant configurations are retained for up to 48 hours to allow seamless restoration in the event of an accidental uninstallation.
-          </li>
-          <li>
-            <strong>Shop Redaction:</strong> Upon receipt of Shopify's mandatory <code>shop/redact</code> privacy webhook, all announcements, analytics records, shop plan data, and authentication sessions associated with the shop domain are permanently deleted from our database.
-          </li>
-        </ul>
       </div>
 
       <div className="policy-card">
-        <h2>6. GDPR & Mandatory Privacy Webhooks</h2>
+        <h2>4. Customer Data</h2>
         <p>
-          Announcement Bar Pro fully complies with Shopify's mandatory GDPR and data privacy frameworks:
+          We do not store personally identifiable information (PII) of your store's customers. When your customers visit the store, any conditions such as location (country) or cart spend are processed temporarily in memory to match targeting rules and are not saved on our servers.
         </p>
-        <ul>
-          <li>
-            <strong><code>customers/data_request</code>:</strong> Since the app does not store customer PII, data requests return a verified empty payload acknowledging no personal data is held.
-          </li>
-          <li>
-            <strong><code>customers/redact</code>:</strong> Since no customer PII is stored, customer redactions are processed automatically.
-          </li>
-          <li>
-            <strong><code>shop/redact</code>:</strong> Triggers complete, irreversible deletion of all merchant shop data within the required timeframe.
-          </li>
-        </ul>
       </div>
 
       <div className="policy-card">
-        <h2>7. Merchant Rights & Support Contact</h2>
+        <h2>5. Cookies and Similar Technologies</h2>
         <p>
-          Merchants have the right to request clarification, inspection, or manual deletion of their stored app configuration data at any time.
+          The app does not use tracking cookies. If you enable the close button on an announcement bar, we use browser session storage to remember that the visitor closed the bar, preventing it from showing again during the same visit.
+        </p>
+      </div>
+
+      <div className="policy-card">
+        <h2>6. Data Storage and Security</h2>
+        <p>
+          All application settings are stored in a secure cloud database. We follow industry standard security measures, including HTTPS encryption for all data in transit, to protect your store configurations and authorization tokens.
+        </p>
+      </div>
+
+      <div className="policy-card">
+        <h2>7. Data Retention</h2>
+        <p>
+          We retain your announcement settings and store metadata as long as the app is installed. If you uninstall the app, we save your configuration data for up to 48 hours in case of accidental removal.
+        </p>
+      </div>
+
+      <div className="policy-card">
+        <h2>8. Data Deletion</h2>
+        <p>
+          After the 48-hour uninstallation window passes, your store configurations and related records are permanently deleted from our database.
+        </p>
+      </div>
+
+      <div className="policy-card">
+        <h2>9. Shopify Privacy Webhooks / Merchant Requests</h2>
+        <p>
+          We support and comply with all Shopify mandatory privacy webhooks (customer data request, customer data redaction, and store data deletion) to ensure your store remains fully compliant with global data privacy requirements.
+        </p>
+      </div>
+
+      <div className="policy-card">
+        <h2>10. Third-Party Services</h2>
+        <p>
+          We do not share, sell, or distribute your store configuration or visitor details with any third-party marketing, analytics, or advertising platforms.
+        </p>
+      </div>
+
+      <div className="policy-card">
+        <h2>11. Merchant Rights</h2>
+        <p>
+          You have the right to request access to the configuration data we store or ask for manual deletion of your store configurations at any time.
+        </p>
+      </div>
+
+      <div className="policy-card">
+        <h2>12. Contact Us</h2>
+        <p>
+          If you have any questions about this Privacy Policy or how we handle data, please contact us:
         </p>
         <div className="contact-card">
-          <p><strong>Merchant Support Channel:</strong> Shopify Partner Dashboard App Support</p>
-          <p><strong>Email Configuration Reference:</strong> <code>[SUPPORT_EMAIL_ADDRESS — Configured in Shopify Partner Dashboard]</code></p>
+          <p><strong>Merchant Support:</strong> Shopify Partner Dashboard App Support</p>
+          <p><strong>Email Address:</strong> support@announcementbarpro.com</p>
           <p><strong>Support SLA:</strong> Standard support inquiries are answered within 24 business hours.</p>
         </div>
       </div>
