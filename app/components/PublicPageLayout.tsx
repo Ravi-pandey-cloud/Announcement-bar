@@ -217,19 +217,19 @@ export function PublicPageLayout({
               href="/documentation"
               className={`pub-nav-link ${activeTab === "documentation" ? "active" : ""}`}
             >
-              📖 Documentation
+              Documentation
             </a>
             <a
               href="/faq"
               className={`pub-nav-link ${activeTab === "faq" ? "active" : ""}`}
             >
-              ❓ FAQ
+              FAQ
             </a>
             <a
               href="/privacy-policy"
               className={`pub-nav-link ${activeTab === "privacy-policy" ? "active" : ""}`}
             >
-              🔒 Privacy Policy
+              Privacy Policy
             </a>
           </nav>
         </div>
